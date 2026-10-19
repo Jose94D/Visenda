@@ -4,14 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
+import cl.visenda.app.lab.Laboratorio
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,16 +42,7 @@ class MainActivity : ComponentActivity() {
 fun VisendaApp() {
     MaterialTheme(colorScheme = VisendaColors) {
         Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
-            Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text("Visenda", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    "Proyecto base listo",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Laboratorio(Modifier.fillMaxSize().padding(padding).padding(24.dp))
         }
     }
 }

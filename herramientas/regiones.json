@@ -1,0 +1,5 @@
+{
+  "_nota": "Rectángulos [oeste, sur, este, norte] con ~0,2° de margen. shortcut: rectángulos en vez de polígonos regionales; pasar a polígonos al cubrir las 16 regiones.",
+  "biobio": [-73.95, -38.55, -71.0, -36.35],
+  "nuble": [-72.95, -37.25, -71.0, -35.95]
+}

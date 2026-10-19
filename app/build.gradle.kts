@@ -48,4 +48,7 @@ dependencies {
 
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
+
+    implementation(libs.valhalla.mobile)
+    implementation(libs.valhalla.models.config) // la librería lo publica solo en runtime, pero su API lo expone
 }
