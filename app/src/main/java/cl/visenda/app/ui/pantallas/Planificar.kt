@@ -1,5 +1,8 @@
 package cl.visenda.app.ui.pantallas
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -72,7 +75,7 @@ fun Planificar(estado: AppEstado, nav: Navegador, modifier: Modifier) {
     data class Candidato(val id: Long, val nombre: String, val esp: String?, val estado: Estado, val faltan: Int, val diasDisponibles: Int, val horario: String, val oficinas: Int)
     val candidatos = d.clientes.mapNotNull { c ->
         val estados = d.estadosDe(c.id, hoy).filter { it.estado == Estado.EN_RIESGO || it.estado == Estado.PENDIENTE }
-        val hoyAtiende = d.horariosDelDia(c.id, fecha.dayOfWeek).filter { (_, t) -> t.any { it.cierra > salida } }
+        val hoyAtiende = d.horariosDelDia(c.id, fecha.dayOfWeek).filter { (l, t) -> l.lat != null && t.any { it.cierra > salida } }
         if ((estados.isEmpty() && c.id !in estado.seleccion) || hoyAtiende.isEmpty()) return@mapNotNull null
         val finCiclo = estados.mapNotNull { d.cicloVigente(it.empresa.id, hoy)?.fin }.minOrNull()?.let(LocalDate::ofEpochDay) ?: hoy
         Candidato(
@@ -82,6 +85,11 @@ fun Planificar(estado: AppEstado, nav: Navegador, modifier: Modifier) {
             d.atenciones.count { it.clienteId == c.id },
         )
     }.sortedWith(compareBy<Candidato> { it.estado }.thenBy { it.diasDisponibles }.thenByDescending { it.faltan })
+
+    // Se pide la ubicación al calcular; si el usuario la niega, la ruta igual se calcula desde el punto por defecto.
+    val permisoUbicacion = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        estado.calcularRuta(fecha, salida, FIN_JORNADA) { nav.pestana(Pantalla.Ruta) }
+    }
 
     LaunchedEffect(Unit) {
         if (estado.seleccion.isEmpty()) estado.seleccion = candidatos.take(PRESELECCION).map { it.id }
@@ -149,7 +157,7 @@ fun Planificar(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                     ?: if (compartidos > 0) Text("$compartidos se visitan en el mismo lugar", color = Colores.Secundario, fontSize = 13.sp) else Unit
             }
             Button(
-                onClick = { estado.calcularRuta(fecha, salida) { nav.pestana(Pantalla.Ruta) } },
+                onClick = { permisoUbicacion.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) },
                 enabled = elegidos.isNotEmpty(), shape = RoundedCornerShape(14.dp), modifier = Modifier.height(52.dp),
             ) {
                 Text("Calcular ruta", fontWeight = FontWeight.SemiBold)

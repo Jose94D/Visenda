@@ -24,10 +24,13 @@ import androidx.compose.ui.unit.dp
 import cl.visenda.app.lab.Laboratorio
 import cl.visenda.app.ui.pantallas.Ajustes
 import cl.visenda.app.ui.pantallas.Clientes
+import cl.visenda.app.ui.pantallas.Importar
 import cl.visenda.app.ui.pantallas.Inicio
 import cl.visenda.app.ui.pantallas.Perfil
 import cl.visenda.app.ui.pantallas.Planificar
 import cl.visenda.app.ui.pantallas.Ruta
+import cl.visenda.app.ui.pantallas.SinUbicar
+import cl.visenda.app.ui.pantallas.Ubicar
 import cl.visenda.app.dominio.Estado
 
 sealed interface Pantalla {
@@ -38,6 +41,9 @@ sealed interface Pantalla {
     data class Perfil(val clienteId: Long) : Pantalla
     data object Planificar : Pantalla
     data object Laboratorio : Pantalla
+    data object Importar : Pantalla
+    data object SinUbicar : Pantalla
+    data class Ubicar(val lugarId: Long) : Pantalla
 }
 
 /** Navegación mínima: una pila de pantallas. Las pestañas reinician la pila. */
@@ -101,6 +107,9 @@ fun VisendaApp() {
                 is Pantalla.Perfil -> Perfil(estado, nav, actual.clienteId, m)
                 Pantalla.Planificar -> Planificar(estado, nav, m)
                 Pantalla.Laboratorio -> Laboratorio(m.padding(24.dp))
+                Pantalla.Importar -> Importar(estado, nav, m)
+                Pantalla.SinUbicar -> SinUbicar(estado, nav, m)
+                is Pantalla.Ubicar -> Ubicar(estado, nav, actual.lugarId, m)
             }
         }
     }

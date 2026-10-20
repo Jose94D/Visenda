@@ -51,6 +51,7 @@ fun Inicio(estado: AppEstado, nav: Navegador, modifier: Modifier) {
     val d = estado.datos
     val hoy = estado.hoy
     val enRiesgo = d.clientes.count { d.peorEstado(it.id, hoy) == Estado.EN_RIESGO }
+    val sinUbicar = d.lugares.count { it.lat == null }
     val atiendenHoy = d.clientes.count { d.horariosDelDia(it.id, hoy.dayOfWeek).isNotEmpty() }
     val saludo = when (LocalTime.now().hour) { in 5..11 -> "Buenos días"; in 12..19 -> "Buenas tardes"; else -> "Buenas noches" }
 
@@ -84,6 +85,14 @@ fun Inicio(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                 titulo = "$enRiesgo ${if (enRiesgo == 1) "cliente en riesgo" else "clientes en riesgo"}",
                 detalle = "Les faltan visitas y quedan pocos días para cerrar el ciclo.",
                 alTocar = { nav.ir(Pantalla.Clientes(Estado.EN_RIESGO)) },
+            )
+        }
+        if (sinUbicar > 0) item {
+            Fila(
+                icono = Iconos.Lugar, fondo = Colores.NaranjaSuave, colorIcono = Color(0xFFB04A06),
+                titulo = "$sinUbicar ${if (sinUbicar == 1) "dirección sin ubicar" else "direcciones sin ubicar"}",
+                detalle = "Esos clientes no entran a las rutas hasta ubicarlos en el mapa.",
+                alTocar = { nav.ir(Pantalla.SinUbicar) },
             )
         }
         item {

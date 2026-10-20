@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- La ubicación solo se usa en el teléfono, como punto de partida de la ruta. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <!-- Sin respaldo automático: los datos del kardex nunca deben salir del teléfono (Ley 21.719). -->
     <application
         android:allowBackup="false"

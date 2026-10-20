@@ -4,7 +4,7 @@ App Android para visitadores en terreno (visitadores médicos y oficios similare
 
 Funciona **100% dentro del teléfono**: sin servidor, sin cuentas y sin que los datos salgan del dispositivo. Rutas y mapas también son offline.
 
-> **Estado:** Hito 2 terminado. El prototipo es navegable con datos de ejemplo y calcula rutas reales sin internet; está en validación con visitadores. Sigue el Hito 3 (optimizador e importador completo).
+> **Estado:** Hito 2 terminado. El prototipo es navegable con datos de ejemplo y calcula rutas reales sin internet; está en validación con visitadores. Hito 3 en curso: ya funcionan el optimizador de ruta, el importador del kardex y la corrección de ubicaciones en el mapa; siguen la descarga de mapas por región y el respaldo cifrado.
 >
 > Avance del proyecto: [tablero en Trello](https://trello.com/b/AAhJ7hXT/visenda).
 
@@ -24,20 +24,20 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 
 ## Funciones
 
-**Ya funcionan (prototipo):**
+**Ya funcionan:**
+
+- **Importar el kardex** desde `.xlsx`: propone qué es cada columna, agrupa las filas de un mismo cliente con varias oficinas, entiende los horarios más comunes y deja "por revisar" los que no. Reimportar actualiza sin duplicar ni borrar visitas. Las direcciones se ubican solas con el geocodificador de Android.
 
 - **Ciclos por empresa**, con frecuencias por categoría y aviso de clientes en riesgo antes del cierre del ciclo.
 - **Varias empresas a la vez**: una misma visita puede contar para más de una.
 - **Clientes con varias oficinas**, cada una con su horario, incluido el horario partido.
-- **Planificar el día**: sugiere a quién visitar y agrupa en una parada a los clientes del mismo lugar cuando sus horarios lo permiten. Después de las 18:00 planifica el día hábil siguiente.
-- **Ruta y mapa offline** con Valhalla y MapLibre (probado en Biobío y Ñuble).
+- **Planificar el día**: sugiere a quién visitar y calcula el orden óptimo respetando los horarios de atención. Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno. Después de las 18:00 planifica el día hábil siguiente.
+- **Ruta y mapa offline** con Valhalla y MapLibre (probado en Biobío y Ñuble). La ruta parte desde la ubicación del teléfono.
+- **Ubicar en el mapa** las direcciones que el geocodificador no encontró, o corregir una mal ubicada; la corrección no se pierde al reimportar.
 - **Perfil del cliente** con oficinas, horarios, datos extra del kardex (cumpleaños, teléfono…) e historial de visitas.
 
 **Próximos hitos:**
 
-- Optimizador de ruta con ventanas de tiempo (hoy el orden es por horario de apertura).
-- Importador completo del kardex `.xlsx`, asignando cada columna (el lector ya está hecho).
-- Geocodificación de direcciones con corrección manual en el mapa.
 - Descarga de mapas por región de Chile.
 - Respaldo cifrado para traspasar los datos a otro teléfono y bloqueo con huella.
 
@@ -47,6 +47,7 @@ Los datos del kardex son personales y confidenciales, por eso:
 
 - Se guardan solo en el teléfono. El respaldo automático de Android está desactivado (`allowBackup="false"` y `dataExtractionRules`).
 - Lo único que sale del dispositivo son las direcciones que se envían al geocodificador de Android al importar, nunca nombres ni RUT.
+- La ubicación del teléfono solo se usa dentro de él, como punto de partida de la ruta.
 - No hay analítica ni reportes de errores con datos personales.
 
 Diseñado considerando la Ley 21.719 de protección de datos personales de Chile.
@@ -60,7 +61,7 @@ Diseñado considerando la Ley 21.719 de protección de datos personales de Chile
 | Rutas offline | Valhalla (valhalla-mobile), teselas por región |
 | Mapa | MapLibre con archivo PMTiles offline (Protomaps) |
 | Excel | Lector `.xlsx` propio, sin dependencias |
-| Optimizador | Propio en Kotlin, con ventanas de tiempo (Hito 3) |
+| Optimizador | Propio en Kotlin, con ventanas de tiempo: exacto hasta 15 clientes, heurístico sobre eso |
 | Android mínimo | 8.0 (API 26) |
 
 ## Compilar
@@ -87,7 +88,7 @@ Cada push compila el APK automáticamente en GitHub Actions; se descarga desde l
 app/src/main/java/cl/visenda/app/
 ├── MainActivity.kt          Punto de entrada
 ├── data/                    Modelo de datos (12 tablas), Room y datos de ejemplo
-├── dominio/                 Reglas de negocio: ciclos, estados, agrupación de paradas
+├── dominio/                 Reglas de negocio: ciclos, estados y optimizador de ruta
 ├── importar/                Lector de Excel (.xlsx)
 ├── ui/                      Navegación, tema, mapa offline y estado de la app
 │   └── pantallas/           Inicio, Clientes, Perfil, Planificar, Ruta, Ajustes

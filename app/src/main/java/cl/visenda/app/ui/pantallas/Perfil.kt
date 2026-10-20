@@ -2,6 +2,7 @@ package cl.visenda.app.ui.pantallas
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,6 +43,7 @@ import cl.visenda.app.ui.Colores
 import cl.visenda.app.ui.Etiqueta
 import cl.visenda.app.ui.Iconos
 import cl.visenda.app.ui.Navegador
+import cl.visenda.app.ui.Pantalla
 import cl.visenda.app.ui.Tarjeta
 import cl.visenda.app.ui.TituloSeccion
 import java.time.format.DateTimeFormatter
@@ -125,16 +127,26 @@ fun Perfil(estado: AppEstado, nav: Navegador, clienteId: Long, modifier: Modifie
                         Column(Modifier.weight(1f)) {
                             Text(lugar.nombre ?: lugar.direccion, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                             Text(lugar.direccion, color = Colores.Secundario, fontSize = 13.sp)
-                            if (lugar.corregidoManual) {
-                                Column(Modifier.padding(top = 6.dp)) { Etiqueta("Ubicación ajustada a mano", Estado.COMPLETO) }
+                            when {
+                                lugar.lat == null -> Column(Modifier.padding(top = 6.dp)) { Etiqueta("Sin ubicar: no entra a las rutas", Estado.EN_RIESGO) }
+                                lugar.corregidoManual -> Column(Modifier.padding(top = 6.dp)) { Etiqueta("Ubicación ajustada a mano", Estado.COMPLETO) }
                             }
+                            Text(
+                                if (lugar.lat == null) "Ubicar en el mapa" else "Corregir ubicación",
+                                color = Colores.AzulTexto, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(top = 6.dp).clickable { nav.ir(Pantalla.Ubicar(lugar.id)) }.padding(vertical = 6.dp),
+                            )
                         }
                     }
-                    resumenHorarios(d.horarios.filter { it.atencionId == a.id }).forEach { (dias, tramos) ->
+                    val (porRevisar, legibles) = d.horarios.filter { it.atencionId == a.id }.partition { it.porRevisar }
+                    resumenHorarios(legibles).forEach { (dias, tramos) ->
                         Row {
                             Text(dias, color = Colores.Secundario, fontSize = 13.sp, modifier = Modifier.width(120.dp))
                             Text(tramos, fontSize = 13.sp)
                         }
+                    }
+                    porRevisar.forEach {
+                        Text("Horario por revisar: \"${it.textoOriginal}\"", color = Colores.Naranja, fontSize = 13.sp)
                     }
                 }
             }

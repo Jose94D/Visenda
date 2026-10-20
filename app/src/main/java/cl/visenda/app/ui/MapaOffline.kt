@@ -2,7 +2,9 @@ package cl.visenda.app.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -13,6 +15,7 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import java.io.File
@@ -25,12 +28,19 @@ fun MapaOffline(
     ruta: List<Pair<Double, Double>>,
     puntos: List<Pair<Double, Double>>,
     modifier: Modifier = Modifier,
+    /** Para elegir un punto: el mapa abre aquí, cerca, y avisa el centro cada vez que el usuario lo suelta. */
+    centro: Pair<Double, Double>? = null,
+    alDetenerse: ((Double, Double) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val avisar by rememberUpdatedState(alDetenerse)
     val mapView = remember {
         MapLibre.getInstance(context)
-        MapView(context).apply { onCreate(null) }
+        // TextureView: con SurfaceView, en algunas pantallas de Compose (Ubicar) el mapa nunca quedaba listo y se veía vacío.
+        MapView(context, MapLibreMapOptions.createFromAttributes(context).textureMode(true)).apply {
+            onCreate(null)
+        }
     }
     DisposableEffect(lifecycle) {
         val observador = LifecycleEventObserver { _, evento ->
@@ -53,9 +63,15 @@ fun MapaOffline(
         modifier = modifier,
         update = { vista ->
             vista.getMapAsync { mapa ->
+                if (vista.tag == null) {
+                    vista.tag = true
+                    mapa.addOnCameraIdleListener { mapa.cameraPosition.target?.let { avisar?.invoke(it.latitude, it.longitude) } }
+                }
                 mapa.setStyle(Style.Builder().fromJson(estilo(archivoMapa, ruta, puntos))) {
                     val todos = ruta + puntos
-                    val camara = if (todos.size >= 2) {
+                    val camara = if (centro != null) {
+                        CameraUpdateFactory.newLatLngZoom(LatLng(centro.first, centro.second), 15.0) // el archivo de mapa llega hasta el zoom 15
+                    } else if (todos.size >= 2) {
                         val limites = LatLngBounds.Builder().includes(todos.map { (lat, lon) -> LatLng(lat, lon) }).build()
                         CameraUpdateFactory.newLatLngBounds(limites, (48 * vista.resources.displayMetrics.density).toInt())
                     } else {
@@ -96,6 +112,9 @@ fun decodificarPolilinea(texto: String, precision: Int = 6): List<Pair<Double, D
 
 private fun estilo(archivoMapa: File, ruta: List<Pair<Double, Double>>, puntos: List<Pair<Double, Double>>): String {
     val coordenadas = ruta.joinToString(",", "[", "]") { (lat, lon) -> "[$lon,$lat]" }
+    // Una línea sin puntos no es GeoJSON válido y MapLibre rechazaría todo el estilo (pasa en Ubicar, que no tiene ruta).
+    val lineaRuta = if (ruta.size < 2) """{"type": "FeatureCollection", "features": []}"""
+        else """{"type": "Feature", "properties": {}, "geometry": {"type": "LineString", "coordinates": $coordenadas}}"""
     // Un lugar visitado dos veces (mañana y tarde) es un solo marcador con ambos números: "2·4".
     val marcadores = puntos.withIndex().groupBy({ it.value }, { it.index + 1 }).entries.joinToString(",", "[", "]") { (p, numeros) ->
         """{"type":"Feature","properties":{"n":"${numeros.joinToString("·")}"},"geometry":{"type":"Point","coordinates":[${p.second},${p.first}]}}"""
@@ -107,8 +126,7 @@ private fun estilo(archivoMapa: File, ruta: List<Pair<Double, Double>>, puntos: 
       "sources": {
         "base": {"type": "vector", "url": "pmtiles://file://${archivoMapa.absolutePath}",
                  "attribution": "© OpenStreetMap · Protomaps"},
-        "ruta": {"type": "geojson", "data": {"type": "Feature", "properties": {},
-                 "geometry": {"type": "LineString", "coordinates": $coordenadas}}},
+        "ruta": {"type": "geojson", "data": $lineaRuta},
         "puntos": {"type": "geojson", "data": {"type": "FeatureCollection", "features": $marcadores}}
       },
       "layers": [

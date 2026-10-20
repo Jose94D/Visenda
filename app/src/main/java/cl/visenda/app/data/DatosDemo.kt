@@ -10,6 +10,9 @@ import java.time.format.DateTimeFormatter
  * desde hoy, así el ciclo siempre está vigente y siempre hay clientes en cada estado.
  */
 object DatosDemo {
+    /** Para ofrecer quitarlos al importar el primer kardex real. */
+    val EMPRESAS = setOf("Laboratorio Andes", "Pharma Sur")
+
     private val LV = (1..5).toList()
 
     fun datos(hoy: LocalDate): Datos {

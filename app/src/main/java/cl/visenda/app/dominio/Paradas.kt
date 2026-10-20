@@ -16,8 +16,7 @@ fun Datos.visitables(clientes: List<Long>, dia: java.time.DayOfWeek, salida: Int
 
 /**
  * Junta en una parada a los clientes del mismo lugar solo si sus horarios se cruzan con margen para la visita.
- * Los grupos salen ordenados por hora de apertura.
- * shortcut: orden por apertura en vez de optimizar la ruta; el optimizador real llega en el hito 3.
+ * Solo estima las paradas para la barra de Planificar; las definitivas salen de optimizar().
  */
 fun agruparParadas(visitables: List<Visitable>, minutosPorVisita: Int): List<Grupo> {
     val grupos = mutableListOf<Grupo>()

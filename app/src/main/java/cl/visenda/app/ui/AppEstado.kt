@@ -1,6 +1,15 @@
 package cl.visenda.app.ui
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import android.os.Build
+import android.os.CancellationSignal
+import android.location.Geocoder
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -11,35 +20,62 @@ import cl.visenda.app.data.VisendaDatabase
 import cl.visenda.app.data.Visita
 import cl.visenda.app.dominio.Datos
 import cl.visenda.app.dominio.Estado
-import cl.visenda.app.dominio.visitables
-import cl.visenda.app.dominio.agruparParadas
+import cl.visenda.app.dominio.Motivo
+import cl.visenda.app.dominio.Opcion
+import cl.visenda.app.dominio.Paso
+import cl.visenda.app.dominio.Pedido
+import cl.visenda.app.dominio.SIN_VIAJE
 import cl.visenda.app.dominio.estadosDe
 import cl.visenda.app.dominio.horariosDelDia
+import cl.visenda.app.dominio.optimizar
+import cl.visenda.app.importar.Cambios
+import cl.visenda.app.importar.LectorXlsx
+import cl.visenda.app.importar.Rol
+import cl.visenda.app.importar.ZONA_BIOBIO_NUBLE
+import cl.visenda.app.importar.dentroDeZona
+import cl.visenda.app.importar.geocodificar
+import cl.visenda.app.importar.limpiarDireccion
+import cl.visenda.app.importar.mapeoDeTexto
+import cl.visenda.app.importar.mismaComuna
 import cl.visenda.app.ui.decodificarPolilinea
 import com.valhalla.valhalla.Valhalla
 import com.valhalla.valhalla.config.ValhallaConfigFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.time.LocalDate
+import java.util.Locale
+import kotlin.coroutines.resume
 
-data class Parada(val lugar: Lugar, val clientes: List<Cliente>, val llegada: Int, val abre: Int, val cierra: Int) {
-    val espera get() = (abre - llegada).coerceAtLeast(0)
-    val atrasada get() = maxOf(llegada, abre) + MINUTOS_POR_VISITA * clientes.size > cierra
+/** inicio: cuando empieza a atender (si llega antes de que abra, espera); cierra: hasta cuándo atiende el primero que cierra. */
+data class Parada(val lugar: Lugar, val clientes: List<Cliente>, val llegada: Int, val inicio: Int, val cierra: Int) {
+    val espera get() = inicio - llegada
 }
 
-data class RutaDelDia(val fecha: LocalDate, val paradas: List<Parada>, val km: Double, val termina: Int, val trazado: List<Pair<Double, Double>>)
+data class RutaDelDia(
+    val fecha: LocalDate,
+    val paradas: List<Parada>,
+    val km: Double,
+    val termina: Int,
+    val trazado: List<Pair<Double, Double>>,
+    val fuera: List<Pair<Cliente, Motivo>>,
+    /** Desde dónde parte, para mostrarlo: la ubicación del teléfono o SALIDA, con el motivo. */
+    val origen: String,
+)
 
 const val MINUTOS_POR_VISITA = 15
 
-// shortcut: punto de salida fijo en Concepción; usar la ubicación del teléfono en el hito 3.
+// shortcut: sin ubicación del teléfono la ruta sale del centro de Concepción; agregar una dirección de salida en Ajustes.
 val SALIDA = -36.8270 to -73.0503
 
 /** Estado de toda la app. Una sola instancia, creada en VisendaApp. */
-class AppEstado(context: Context, private val scope: CoroutineScope) {
+class AppEstado(private val context: Context, private val scope: CoroutineScope) {
     private val dao = VisendaDatabase.get(context).dao()
     val dirTeselas = File(context.getExternalFilesDir(null), "teselas")
     val archivoMapa = File(context.getExternalFilesDir(null), "mapa/biobio-nuble.pmtiles")
@@ -61,10 +97,19 @@ class AppEstado(context: Context, private val scope: CoroutineScope) {
     // El motor tarda ~2 s en arrancar: se mantiene vivo mientras la app está abierta.
     private val motor by lazy { Valhalla(context, ValhallaConfigFactory.usingTilesDir(dirTeselas.absolutePath)) }
 
+    /** Texto de avance mientras se ubican las direcciones importadas; null si no hay nada en curso. */
+    var progresoImportacion by mutableStateOf<String?>(null)
+        private set
+
     init {
         scope.launch {
             withContext(Dispatchers.IO) {
-                if (dao.empresas().isEmpty()) dao.cargar(DatosDemo.datos(hoy))
+                // Los datos de ejemplo se cargan solo la primera vez: si el usuario los quita, no vuelven.
+                val prefs = context.getSharedPreferences("visenda", Context.MODE_PRIVATE)
+                if (!prefs.getBoolean("iniciada", false)) {
+                    if (dao.empresas().isEmpty()) dao.cargar(DatosDemo.datos(hoy))
+                    prefs.edit().putBoolean("iniciada", true).apply()
+                }
             }
             recargar()
             cargado = true
@@ -92,42 +137,165 @@ class AppEstado(context: Context, private val scope: CoroutineScope) {
         it.clienteId == clienteId && cl.visenda.app.dominio.fechaDeVisita(it) == hoy
     }
 
-    /** Ruta con las paradas ordenadas por hora de apertura (ver agruparParadas). */
-    fun calcularRuta(fecha: LocalDate, salidaMinutos: Int, alTerminar: () -> Unit) = scope.launch {
+    val idsDemo get() = datos.empresas.filter { it.nombre in DatosDemo.EMPRESAS }.map { it.id }
+
+    /** Lee la primera hoja del .xlsx elegido. Lanza LectorXlsx.FormatoInvalido si el archivo no sirve. */
+    suspend fun leerKardex(uri: Uri): List<List<String>> = withContext(Dispatchers.IO) {
+        context.contentResolver.openInputStream(uri)?.use { LectorXlsx.leer(it) } ?: throw LectorXlsx.FormatoInvalido("No se pudo abrir el archivo.")
+    }
+
+    suspend fun mapeoGuardado(empresaId: Long): Map<String, Rol> =
+        withContext(Dispatchers.IO) { dao.mapeo(empresaId)?.configuracion?.let(::mapeoDeTexto).orEmpty() }
+
+    /** Guarda el kardex y después ubica las direcciones nuevas (RN-11). alTerminar recibe cuántos lugares quedaron sin ubicar. */
+    fun importar(cambios: Cambios, empresasABorrar: List<Long>, alTerminar: (Int) -> Unit, alFallar: (String) -> Unit) = scope.launch {
+        runCatching { withContext(Dispatchers.IO) { dao.importar(cambios, empresasABorrar) } }.onFailure {
+            alFallar("No se pudo guardar el kardex: ${it.message}")
+            return@launch
+        }
+        if (empresasABorrar.isNotEmpty()) seleccion = emptyList()
+        ruta = null
+        recargar()
+        val pendientes = datos.lugares.filter { it.lat == null && !it.corregidoManual }
+        if (pendientes.isNotEmpty() && Geocoder.isPresent()) {
+            val geocoder = Geocoder(context, Locale.forLanguageTag("es-CL"))
+            pendientes.forEachIndexed { i, lugar ->
+                progresoImportacion = "Ubicando direcciones: ${i + 1} de ${pendientes.size}"
+                // Solo sale la dirección, nunca el nombre ni el RUT (RN-11, RN-14).
+                // shortcut: zona fija Biobío + Ñuble; usar las regiones descargadas cuando exista la descarga por región.
+                val encontrado = runCatching {
+                    geocodificar(geocoder, "${limpiarDireccion(lugar.direccion)}, Chile", ZONA_BIOBIO_NUBLE, maximo = 5)
+                        .firstOrNull { dentroDeZona(it.latitude, it.longitude) && mismaComuna(lugar.direccion, it.locality, it.subAdminArea) }
+                }.getOrNull()
+                if (encontrado != null) withContext(Dispatchers.IO) { dao.ubicar(lugar.id, encontrado.latitude, encontrado.longitude) }
+            }
+            recargar()
+        }
+        progresoImportacion = null
+        alTerminar(datos.lugares.count { it.lat == null })
+    }
+
+    /** Punto de partida para Ubicar: lo que ya tiene, lo mejor del geocodificador (sin exigir la comuna) o el centro de la comuna. */
+    suspend fun sugerirUbicacion(lugar: Lugar): Pair<Double, Double>? {
+        if (lugar.lat != null && lugar.lng != null) return lugar.lat to lugar.lng
+        if (!Geocoder.isPresent()) return null
+        val geocoder = Geocoder(context, Locale.forLanguageTag("es-CL"))
+        return listOf(limpiarDireccion(lugar.direccion), lugar.direccion.substringAfterLast(',').trim()).firstNotNullOfOrNull { texto ->
+            runCatching { geocodificar(geocoder, "$texto, Chile", ZONA_BIOBIO_NUBLE) }.getOrNull()
+                ?.firstOrNull { dentroDeZona(it.latitude, it.longitude) }?.let { it.latitude to it.longitude }
+        }
+    }
+
+    /** CA-7.1: queda marcada como ajustada a mano, así una reimportación no la pisa. */
+    fun corregirUbicacion(lugarId: Long, lat: Double, lng: Double) = scope.launch {
+        withContext(Dispatchers.IO) { dao.corregirUbicacion(lugarId, lat, lng) }
+        recargar()
+    }
+
+    fun quitarDeCartera(empresaId: Long, clientes: List<Long>) = scope.launch {
+        withContext(Dispatchers.IO) { dao.quitarDeCartera(empresaId, clientes) }
+        recargar()
+        seleccion = seleccion.filter { id -> datos.clientes.any { it.id == id } }
+    }
+
+    /** RN-07: el optimizador elige lugar y orden con los tiempos de Valhalla; luego se pide el trazado de ese orden. */
+    fun calcularRuta(fecha: LocalDate, salidaMinutos: Int, finJornada: Int, alTerminar: () -> Unit) = scope.launch {
         errorRuta = null
         val dia = fecha.dayOfWeek
-        val grupos = agruparParadas(datos.visitables(seleccion, dia, salidaMinutos, MINUTOS_POR_VISITA), MINUTOS_POR_VISITA)
-        if (grupos.isEmpty()) {
+        val opciones = seleccion.associateWith { id -> datos.horariosDelDia(id, dia).filter { (l, _) -> l.lat != null && l.lng != null } }
+        val lugares = opciones.values.flatten().map { it.first }.distinctBy { it.id }
+        if (lugares.isEmpty()) {
             errorRuta = "Ninguno de los clientes elegidos atiende ese día."
             return@launch
         }
-        val lugares = grupos.map { g -> datos.lugares.first { it.id == g.lugarId } }
+        val pedidos = seleccion.map { id ->
+            Pedido(
+                id, datos.estadosDe(id, hoy).any { it.estado == Estado.EN_RIESGO },
+                opciones.getValue(id).map { (l, tramos) -> Opcion(1 + lugares.indexOf(l), tramos.map { it.abre to it.cierra }) },
+            )
+        }
+        val ubicacion = ubicacionActual()
+        val aqui = ubicacion?.takeIf { (lat, lng) -> dentroDeZona(lat, lng) }
+        val origen = when {
+            aqui != null -> "sale desde tu ubicación"
+            ubicacion != null -> "sale desde el centro de Concepción: estás fuera de las regiones con mapa"
+            else -> "sale desde el centro de Concepción: no se obtuvo tu ubicación"
+        }
+        val salida = aqui ?: SALIDA
         runCatching {
-            val puntos = listOf(SALIDA) + lugares.map { it.lat!! to it.lng!! }
+            val viaje = withContext(Dispatchers.IO) { matriz(listOf(salida) + lugares.map { it.lat!! to it.lng!! }) }
+            val plan = withContext(Dispatchers.Default) { optimizar(pedidos, viaje, salidaMinutos, finJornada, MINUTOS_POR_VISITA) }
+            val fuera = plan.fuera.map { (id, motivo) -> datos.clientes.first { it.id == id } to motivo }
+            if (plan.pasos.isEmpty()) return@runCatching null
+
+            // Visitas seguidas en el mismo lugar son una sola parada.
+            val tandas = mutableListOf<MutableList<Paso>>()
+            plan.pasos.forEach { p -> if (tandas.lastOrNull()?.last()?.lugar == p.lugar) tandas.last() += p else tandas += mutableListOf(p) }
+            val paradas = tandas.map { t ->
+                Parada(lugares[t[0].lugar - 1], t.map { p -> datos.clientes.first { it.id == p.clienteId } }, t[0].llegada, t[0].inicio, t.minOf { it.cierra })
+            }
+            val puntos = listOf(salida) + paradas.map { it.lugar.lat!! to it.lugar.lng!! }
             val json = puntos.joinToString(",", """{"locations":[""", """],"costing":"auto","directions_type":"none"}""") { (lat, lon) ->
                 """{"lat":$lat,"lon":$lon}"""
             }
-            val viaje = JSONObject(withContext(Dispatchers.IO) { motor.routeRaw(json) }).getJSONObject("trip")
-            val tramos = viaje.getJSONArray("legs")
-            var reloj = salidaMinutos
-            val paradas = grupos.mapIndexed { i, g ->
-                reloj += (tramos.getJSONObject(i).getJSONObject("summary").getDouble("time") / 60).toInt()
-                val llegada = reloj
-                reloj = maxOf(reloj, g.abre) + MINUTOS_POR_VISITA * g.clientes.size // si llega antes de que abra, espera
-                Parada(lugares[i], g.clientes.map { id -> datos.clientes.first { it.id == id } }, llegada, g.abre, g.cierra)
-            }
+            val trayecto = JSONObject(withContext(Dispatchers.IO) { motor.routeRaw(json) }).getJSONObject("trip")
+            val tramos = trayecto.getJSONArray("legs")
             RutaDelDia(
                 fecha = fecha,
                 paradas = paradas,
-                km = viaje.getJSONObject("summary").getDouble("length"),
-                termina = reloj,
+                km = trayecto.getJSONObject("summary").getDouble("length"),
+                termina = plan.termina,
                 trazado = (0 until tramos.length()).flatMap { decodificarPolilinea(tramos.getJSONObject(it).getString("shape")) },
+                fuera = fuera,
+                origen = origen,
             )
         }.onSuccess {
-            ruta = it
-            alTerminar()
+            if (it == null) errorRuta = "Ninguno de los elegidos alcanza a ser visitado dentro de su horario."
+            else {
+                ruta = it
+                alTerminar()
+            }
         }.onFailure {
             errorRuta = "No se pudo calcular la ruta: ${it.message}. ¿Están descargados los mapas de la región?"
+        }
+    }
+
+    /** Ubicación actual (hasta 5 s de espera) o la última conocida; null sin permiso o sin señal. Nunca sale del teléfono. */
+    @SuppressLint("MissingPermission")
+    private suspend fun ubicacionActual(): Pair<Double, Double>? {
+        val permiso = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            .any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+        if (!permiso) return null
+        val lm = context.getSystemService(LocationManager::class.java) ?: return null
+        val proveedores = listOfNotNull(if (Build.VERSION.SDK_INT >= 31) LocationManager.FUSED_PROVIDER else null, LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+            .filter { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) }
+        val actual: Location? = if (Build.VERSION.SDK_INT >= 30) proveedores.firstOrNull()?.let { p ->
+            withTimeoutOrNull(5_000) {
+                suspendCancellableCoroutine { cont ->
+                    val cancelar = CancellationSignal()
+                    cont.invokeOnCancellation { cancelar.cancel() }
+                    lm.getCurrentLocation(p, cancelar, context.mainExecutor) { cont.resume(it) }
+                }
+            }
+        } else null
+        val ultima = { (proveedores + LocationManager.PASSIVE_PROVIDER).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.time } }
+        return (actual ?: ultima())?.let { it.latitude to it.longitude }
+    }
+
+    /** Minutos de manejo entre todos los puntos (redondeados hacia arriba); SIN_VIAJE si Valhalla no encuentra camino. */
+    private fun matriz(puntos: List<Pair<Double, Double>>): Array<IntArray> {
+        val lista = puntos.joinToString(",", "[", "]") { (lat, lon) -> """{"lat":$lat,"lon":$lon}""" }
+        val filas = JSONObject(motor.matrixRaw("""{"sources":$lista,"targets":$lista,"costing":"auto"}""")).getJSONArray("sources_to_targets")
+        return Array(puntos.size) { i ->
+            val fila = filas.get(i) as JSONArray
+            IntArray(puntos.size) { j ->
+                val celda = fila.getJSONObject(j)
+                when {
+                    i == j -> 0
+                    celda.isNull("time") -> SIN_VIAJE
+                    else -> Math.ceil(celda.getDouble("time") / 60).toInt()
+                }
+            }
         }
     }
 }

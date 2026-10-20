@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cl.visenda.app.dominio.Motivo
 import cl.visenda.app.dominio.hora
 import cl.visenda.app.ui.AppEstado
 import cl.visenda.app.ui.Colores
@@ -39,6 +41,7 @@ import cl.visenda.app.ui.MapaOffline
 import cl.visenda.app.ui.Navegador
 import cl.visenda.app.ui.Pantalla
 import cl.visenda.app.ui.Tarjeta
+import cl.visenda.app.ui.TituloSeccion
 
 @Composable
 fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
@@ -65,7 +68,8 @@ fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    "${ruta.paradas.size} paradas · ${"%.1f".format(ruta.km)} km · termina ${hora(ruta.termina)} · orden por horario, aún sin optimizar",
+                    "${ruta.paradas.size} paradas · ${"%.1f".format(ruta.km)} km · termina ${hora(ruta.termina)} · " +
+                        ruta.origen,
                     color = Colores.Secundario, fontSize = 13.sp,
                 )
             }
@@ -89,13 +93,9 @@ fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                                 Text(p.lugar.direccion, color = Colores.Secundario, fontSize = 13.sp)
                                 Text(p.clientes.joinToString(", ") { it.nombre }, fontSize = 13.sp)
                                 Text(
-                                    when {
-                                        p.atrasada -> "No alcanzas: atiende hasta ${hora(p.cierra)}"
-                                        p.espera > 0 -> "Abre a las ${hora(p.abre)} (esperas ${p.espera} min) · hasta ${hora(p.cierra)}"
-                                        else -> "Atiende hasta ${hora(p.cierra)}"
-                                    },
-                                    color = if (p.atrasada) Colores.Naranja else Colores.Secundario, fontSize = 13.sp,
-                                    fontWeight = if (p.atrasada) FontWeight.SemiBold else FontWeight.Normal,
+                                    if (p.espera > 0) "Abre a las ${hora(p.inicio)} (esperas ${p.espera} min) · hasta ${hora(p.cierra)}"
+                                    else "Atiende hasta ${hora(p.cierra)}",
+                                    color = Colores.Secundario, fontSize = 13.sp,
                                 )
                             }
                         }
@@ -117,6 +117,30 @@ fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                             ) {
                                 Icon(Iconos.Navegar, null, modifier = Modifier.size(18.dp))
                                 Text("  Navegar")
+                            }
+                        }
+                    }
+                }
+            }
+            if (ruta.fuera.isNotEmpty()) {
+                item { TituloSeccion("No caben en esta ruta") }
+                item {
+                    Tarjeta(relleno = 0.dp) {
+                        Column {
+                            ruta.fuera.forEachIndexed { i, (cliente, motivo) ->
+                                if (i > 0) HorizontalDivider(color = Colores.Separador)
+                                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                                    Text(cliente.nombre, fontSize = 15.sp)
+                                    Text(
+                                        when (motivo) {
+                                            Motivo.SIN_CAMINO -> "No hay camino en los mapas descargados"
+                                            Motivo.HORARIO -> "Ya habrá cerrado cuando alcances a llegar"
+                                            Motivo.FIN_DE_JORNADA -> "Su horario cae después del fin de la jornada"
+                                            Motivo.NO_CABE -> "No alcanza junto con los demás; quedó fuera por prioridad"
+                                        },
+                                        color = Colores.Naranja, fontSize = 13.sp,
+                                    )
+                                }
                             }
                         }
                     }

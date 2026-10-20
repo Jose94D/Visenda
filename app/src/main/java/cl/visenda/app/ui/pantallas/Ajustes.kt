@@ -39,6 +39,20 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
     LazyColumn(modifier, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Text("Ajustes", fontSize = 26.sp, fontWeight = FontWeight.SemiBold) }
 
+        item { TituloSeccion("Kardex") }
+        item {
+            Tarjeta(Modifier.clickable { nav.ir(Pantalla.Importar) }) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Iconos.Importar, null, tint = Colores.Azul, modifier = Modifier.size(20.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Importar kardex", fontSize = 15.sp)
+                        Text("Desde un archivo Excel (.xlsx)", color = Colores.Secundario, fontSize = 13.sp)
+                    }
+                    Icon(Iconos.Siguiente, null, tint = Colores.Secundario, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+
         item { TituloSeccion("Empresas y ciclos") }
         item {
             Lista(d.empresas.map { e ->
