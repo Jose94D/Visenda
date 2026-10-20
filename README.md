@@ -12,15 +12,24 @@ Funciona **100% dentro del teléfono**: sin servidor, sin cuentas y sin que los 
 
 Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 
-| Inicio | Clientes | Perfil |
-|:---:|:---:|:---:|
-| <img src="docs/capturas/inicio.png" width="240" alt="Inicio: avance del ciclo por empresa y clientes en riesgo"> | <img src="docs/capturas/clientes.png" width="240" alt="Clientes agrupados por estado: en riesgo, pendientes y completos"> | <img src="docs/capturas/perfil.png" width="240" alt="Perfil del cliente con avance por empresa, oficinas y horarios"> |
-| Avance del ciclo por empresa y alertas de riesgo | Clientes ordenados por estado | Avance por empresa, oficinas con su horario y datos del kardex |
+<!-- Sin tabla: en una tabla GitHub ajusta cada columna al texto y las imágenes quedan de distinto tamaño. -->
+<p align="center">
+  <img src="docs/capturas/inicio.png" width="240" alt="Inicio: avance del ciclo por empresa y clientes en riesgo">
+  <img src="docs/capturas/clientes.png" width="240" alt="Clientes agrupados por estado: en riesgo, pendientes y completos">
+  <img src="docs/capturas/perfil.png" width="240" alt="Perfil del cliente con avance por empresa, oficinas y horarios">
+</p>
+<p align="center">
+  <img src="docs/capturas/planificar.png" width="240" alt="Planificar: clientes sugeridos según riesgo y horario">
+  <img src="docs/capturas/ruta.png" width="240" alt="Ruta del día sobre el mapa offline con horas de llegada">
+  <img src="docs/capturas/ajustes.png" width="240" alt="Ajustes: empresas, ciclos, mapas sin conexión y planificación">
+</p>
 
-| Planificar | Ruta | Ajustes |
-|:---:|:---:|:---:|
-| <img src="docs/capturas/planificar.png" width="240" alt="Planificar: clientes sugeridos según riesgo y horario"> | <img src="docs/capturas/ruta.png" width="240" alt="Ruta del día sobre el mapa offline con horas de llegada"> | <img src="docs/capturas/ajustes.png" width="240" alt="Ajustes: empresas, ciclos, mapas sin conexión y planificación"> |
-| Sugerencias según riesgo y horario de atención | Ruta en mapa offline, con llegada y espera en cada parada | Empresas, ciclos y mapas descargados |
+- **Inicio:** avance del ciclo por empresa y alertas de riesgo.
+- **Clientes:** ordenados por estado.
+- **Perfil:** avance por empresa, oficinas con su horario y datos del kardex.
+- **Planificar:** sugerencias según riesgo y horario de atención.
+- **Ruta:** mapa offline, con llegada y espera en cada parada.
+- **Ajustes:** empresas, ciclos y mapas descargados.
 
 ## Funciones
 
