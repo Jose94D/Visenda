@@ -1,4 +1,4 @@
-package cl.visenda.app.lab
+package cl.visenda.app.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -17,10 +17,10 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import java.io.File
 
-// Mapa offline del Hito 1: archivo PMTiles local (Protomaps) con un estilo propio en grises y la ruta en azul.
+// Mapa offline: archivo PMTiles local (Protomaps) con un estilo propio en grises y la ruta en azul.
 
 @Composable
-fun MapaLab(
+fun MapaOffline(
     archivoMapa: File,
     ruta: List<Pair<Double, Double>>,
     puntos: List<Pair<Double, Double>>,
@@ -96,7 +96,10 @@ fun decodificarPolilinea(texto: String, precision: Int = 6): List<Pair<Double, D
 
 private fun estilo(archivoMapa: File, ruta: List<Pair<Double, Double>>, puntos: List<Pair<Double, Double>>): String {
     val coordenadas = ruta.joinToString(",", "[", "]") { (lat, lon) -> "[$lon,$lat]" }
-    val marcadores = puntos.joinToString(",", "[", "]") { (lat, lon) -> "[$lon,$lat]" }
+    // Un lugar visitado dos veces (mañana y tarde) es un solo marcador con ambos números: "2·4".
+    val marcadores = puntos.withIndex().groupBy({ it.value }, { it.index + 1 }).entries.joinToString(",", "[", "]") { (p, numeros) ->
+        """{"type":"Feature","properties":{"n":"${numeros.joinToString("·")}"},"geometry":{"type":"Point","coordinates":[${p.second},${p.first}]}}"""
+    }
     return """
     {
       "version": 8,
@@ -106,8 +109,7 @@ private fun estilo(archivoMapa: File, ruta: List<Pair<Double, Double>>, puntos: 
                  "attribution": "© OpenStreetMap · Protomaps"},
         "ruta": {"type": "geojson", "data": {"type": "Feature", "properties": {},
                  "geometry": {"type": "LineString", "coordinates": $coordenadas}}},
-        "puntos": {"type": "geojson", "data": {"type": "Feature", "properties": {},
-                   "geometry": {"type": "MultiPoint", "coordinates": $marcadores}}}
+        "puntos": {"type": "geojson", "data": {"type": "FeatureCollection", "features": $marcadores}}
       },
       "layers": [
         {"id": "agua-fondo", "type": "background", "paint": {"background-color": "#DCE1E8"}},
@@ -135,7 +137,10 @@ private fun estilo(archivoMapa: File, ruta: List<Pair<Double, Double>>, puntos: 
          "layout": {"text-field": ["get", "name"], "text-font": ["NotoSans"], "text-size": 14},
          "paint": {"text-color": "#15171C", "text-halo-color": "#FFFFFF", "text-halo-width": 1.5}},
         {"id": "puntos", "type": "circle", "source": "puntos",
-         "paint": {"circle-radius": 6, "circle-color": "#1F4FD1", "circle-stroke-color": "#FFFFFF", "circle-stroke-width": 2}}
+         "paint": {"circle-radius": 11, "circle-color": "#1F4FD1", "circle-stroke-color": "#FFFFFF", "circle-stroke-width": 2}},
+        {"id": "numeros", "type": "symbol", "source": "puntos",
+         "layout": {"text-field": ["get", "n"], "text-font": ["NotoSans"], "text-size": 12, "text-allow-overlap": true},
+         "paint": {"text-color": "#FFFFFF"}}
       ]
     }
     """.trimIndent()

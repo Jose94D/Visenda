@@ -1,4 +1,4 @@
-package cl.visenda.app.lab
+package cl.visenda.app.ui
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

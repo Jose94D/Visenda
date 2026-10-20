@@ -4,6 +4,8 @@ import android.location.Geocoder
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import cl.visenda.app.importar.LectorXlsx
+import cl.visenda.app.ui.MapaOffline
+import cl.visenda.app.ui.decodificarPolilinea
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -172,6 +174,6 @@ fun Laboratorio(modifier: Modifier = Modifier) {
             Text(if (verMapa) "Ocultar mapa" else "Ver mapa offline")
         }
         resultados.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-        if (verMapa) MapaLab(archivoMapa, ruta, puntos, Modifier.fillMaxWidth().weight(1f))
+        if (verMapa) MapaOffline(archivoMapa, ruta, puntos, Modifier.fillMaxWidth().weight(1f))
     }
 }
