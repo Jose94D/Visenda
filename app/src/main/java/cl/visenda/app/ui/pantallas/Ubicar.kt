@@ -67,7 +67,7 @@ fun Ubicar(estado: AppEstado, nav: Navegador, lugarId: Long, modifier: Modifier)
             val punto = inicio
             if (punto == null) CircularProgressIndicator()
             else {
-                MapaOffline(estado.archivoMapa, emptyList(), emptyList(), Modifier.fillMaxSize(), centro = punto) { lat, lng ->
+                MapaOffline(estado.archivosMapa, emptyList(), emptyList(), Modifier.fillMaxSize(), centro = punto) { lat, lng ->
                     elegido[0] = lat; elegido[1] = lng
                 }
                 // La punta del pin (abajo) marca el centro del mapa.

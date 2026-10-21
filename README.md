@@ -4,7 +4,7 @@ App Android para visitadores en terreno (visitadores médicos y oficios similare
 
 Funciona **100% dentro del teléfono**: sin servidor, sin cuentas y sin que los datos salgan del dispositivo. Rutas y mapas también son offline.
 
-> **Estado:** Hito 2 terminado. El prototipo es navegable con datos de ejemplo y calcula rutas reales sin internet; está en validación con visitadores. Hito 3 en curso: ya funcionan el optimizador de ruta, el importador del kardex y la corrección de ubicaciones en el mapa; siguen la descarga de mapas por región y el respaldo cifrado.
+> **Estado:** Hito 2 terminado. El prototipo es navegable con datos de ejemplo y calcula rutas reales sin internet; está en validación con visitadores. Hito 3 en curso: ya funcionan el optimizador de ruta, el importador del kardex, la corrección de ubicaciones en el mapa y la descarga de mapas por región; sigue el respaldo cifrado.
 >
 > Avance del proyecto: [tablero en Trello](https://trello.com/b/AAhJ7hXT/visenda).
 
@@ -41,13 +41,13 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 - **Varias empresas a la vez**: una misma visita puede contar para más de una.
 - **Clientes con varias oficinas**, cada una con su horario, incluido el horario partido.
 - **Planificar el día**: sugiere a quién visitar y calcula el orden óptimo respetando los horarios de atención. Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno. Después de las 18:00 planifica el día hábil siguiente.
-- **Ruta y mapa offline** con Valhalla y MapLibre (probado en Biobío y Ñuble). La ruta parte desde la ubicación del teléfono.
+- **Mapas por región:** se descargan desde Ajustes las 16 regiones de Chile, con descarga que se reanuda, opción "Solo con Wi-Fi" y verificación de cada archivo.
+- **Ruta y mapa offline** con Valhalla y MapLibre; las rutas cruzan de una región descargada a otra. La ruta parte desde la ubicación del teléfono.
 - **Ubicar en el mapa** las direcciones que el geocodificador no encontró, o corregir una mal ubicada; la corrección no se pierde al reimportar.
 - **Perfil del cliente** con oficinas, horarios, datos extra del kardex (cumpleaños, teléfono…) e historial de visitas.
 
 **Próximos hitos:**
 
-- Descarga de mapas por región de Chile.
 - Respaldo cifrado para traspasar los datos a otro teléfono y bloqueo con huella.
 
 ## Privacidad
@@ -56,6 +56,7 @@ Los datos del kardex son personales y confidenciales, por eso:
 
 - Se guardan solo en el teléfono. El respaldo automático de Android está desactivado (`allowBackup="false"` y `dataExtractionRules`).
 - Lo único que sale del dispositivo son las direcciones que se envían al geocodificador de Android al importar, nunca nombres ni RUT.
+- Internet solo se usa para bajar los mapas desde [visenda-mapas](https://github.com/Jose94D/visenda-mapas): no se envía ningún dato.
 - La ubicación del teléfono solo se usa dentro de él, como punto de partida de la ruta.
 - No hay analítica ni reportes de errores con datos personales.
 
@@ -87,7 +88,7 @@ Requisitos: Android Studio reciente (incluye el JDK y el SDK de Android con la A
 
 El APK queda en `app/build/outputs/apk/debug/app-debug.apk`. Las pruebas se corren con `./gradlew test`.
 
-Cada push compila el APK automáticamente en GitHub Actions; se descarga desde la pestaña **Actions**. El flujo manual **Generar datos de rutas** construye las teselas de Valhalla para todo Chile y las corta por región.
+Cada push compila el APK automáticamente en GitHub Actions; se descarga desde la pestaña **Actions**. Los mapas y datos de rutas por región se generan y publican en el repositorio público [visenda-mapas](https://github.com/Jose94D/visenda-mapas).
 
 > Los mapas y teselas de prueba no están en el repositorio: se copian al teléfono en `Android/data/cl.visenda.app/files/`.
 
@@ -103,7 +104,6 @@ app/src/main/java/cl/visenda/app/
 │   └── pantallas/           Inicio, Clientes, Perfil, Planificar, Ruta, Ajustes
 └── lab/                     Pantallas de prueba del Hito 1
 app/schemas/                 Esquemas de Room versionados (para migraciones)
-herramientas/                Corte de teselas de rutas por región
 docs/
 ├── ESPECIFICACION.md        Pantallas, reglas de negocio y criterios de aceptación
 ├── Plan-de-desarrollo.pdf   Hitos y calendario

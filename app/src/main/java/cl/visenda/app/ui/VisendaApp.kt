@@ -28,6 +28,7 @@ import cl.visenda.app.ui.pantallas.Importar
 import cl.visenda.app.ui.pantallas.Inicio
 import cl.visenda.app.ui.pantallas.Perfil
 import cl.visenda.app.ui.pantallas.Planificar
+import cl.visenda.app.ui.pantallas.Regiones
 import cl.visenda.app.ui.pantallas.Ruta
 import cl.visenda.app.ui.pantallas.SinUbicar
 import cl.visenda.app.ui.pantallas.Ubicar
@@ -43,6 +44,7 @@ sealed interface Pantalla {
     data object Laboratorio : Pantalla
     data object Importar : Pantalla
     data object SinUbicar : Pantalla
+    data object Regiones : Pantalla
     data class Ubicar(val lugarId: Long) : Pantalla
 }
 
@@ -109,6 +111,7 @@ fun VisendaApp() {
                 Pantalla.Laboratorio -> Laboratorio(m.padding(24.dp))
                 Pantalla.Importar -> Importar(estado, nav, m)
                 Pantalla.SinUbicar -> SinUbicar(estado, nav, m)
+                Pantalla.Regiones -> Regiones(estado, nav, m)
                 is Pantalla.Ubicar -> Ubicar(estado, nav, actual.lugarId, m)
             }
         }

@@ -31,12 +31,12 @@ import cl.visenda.app.dominio.optimizar
 import cl.visenda.app.importar.Cambios
 import cl.visenda.app.importar.LectorXlsx
 import cl.visenda.app.importar.Rol
-import cl.visenda.app.importar.ZONA_BIOBIO_NUBLE
 import cl.visenda.app.importar.dentroDeZona
 import cl.visenda.app.importar.geocodificar
 import cl.visenda.app.importar.limpiarDireccion
 import cl.visenda.app.importar.mapeoDeTexto
 import cl.visenda.app.importar.mismaComuna
+import cl.visenda.app.mapas.GestorMapas
 import cl.visenda.app.ui.decodificarPolilinea
 import com.valhalla.valhalla.Valhalla
 import com.valhalla.valhalla.config.ValhallaConfigFactory
@@ -77,8 +77,10 @@ val SALIDA = -36.8270 to -73.0503
 /** Estado de toda la app. Una sola instancia, creada en VisendaApp. */
 class AppEstado(private val context: Context, private val scope: CoroutineScope) {
     private val dao = VisendaDatabase.get(context).dao()
-    val dirTeselas = File(context.getExternalFilesDir(null), "teselas")
-    val archivoMapa = File(context.getExternalFilesDir(null), "mapa/biobio-nuble.pmtiles")
+    val mapas = GestorMapas(context)
+    /** Un .pmtiles por región descargada; cambia al instalar o borrar regiones. */
+    var archivosMapa by mutableStateOf(mapas.archivosMapa())
+        private set
 
     var datos by mutableStateOf(Datos())
         private set
@@ -94,8 +96,25 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
     var errorRuta by mutableStateOf<String?>(null)
         private set
 
-    // El motor tarda ~2 s en arrancar: se mantiene vivo mientras la app está abierta.
-    private val motor by lazy { Valhalla(context, ValhallaConfigFactory.usingTilesDir(dirTeselas.absolutePath)) }
+    // El motor tarda ~2 s en arrancar: se mantiene vivo mientras la app está abierta y se rehace si cambian las regiones.
+    private var motorActual: Valhalla? = null
+    private val motor: Valhalla
+        get() = motorActual ?: Valhalla(context, ValhallaConfigFactory.usingTilesDir(mapas.dirTeselas.absolutePath)).also { motorActual = it }
+
+    /** Llamar después de instalar o borrar una región. */
+    fun mapasCambiaron() {
+        motorActual?.close()
+        motorActual = null
+        archivosMapa = mapas.archivosMapa()
+        ruta = null
+    }
+
+    /** El geocodificador acepta un solo rectángulo: el que cubre todas las regiones descargadas (null si no hay ninguna). */
+    private fun zonaBusqueda(): DoubleArray? = mapas.zonas().takeIf { it.isNotEmpty() }?.let { z ->
+        doubleArrayOf(z.minOf { it[0] }, z.minOf { it[1] }, z.maxOf { it[2] }, z.maxOf { it[3] })
+    }
+
+    private fun enRegiones(lat: Double, lng: Double) = mapas.zonas().any { dentroDeZona(lat, lng, it) }
 
     /** Texto de avance mientras se ubican las direcciones importadas; null si no hay nada en curso. */
     var progresoImportacion by mutableStateOf<String?>(null)
@@ -113,6 +132,9 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
             }
             recargar()
             cargado = true
+            // Descargas que terminaron con la app cerrada.
+            val instalo = withContext(Dispatchers.IO) { mapas.indiceGuardado()?.let { mapas.instalarTerminadas(it) } ?: false }
+            if (instalo) mapasCambiaron()
         }
     }
 
@@ -162,10 +184,9 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
             pendientes.forEachIndexed { i, lugar ->
                 progresoImportacion = "Ubicando direcciones: ${i + 1} de ${pendientes.size}"
                 // Solo sale la dirección, nunca el nombre ni el RUT (RN-11, RN-14).
-                // shortcut: zona fija Biobío + Ñuble; usar las regiones descargadas cuando exista la descarga por región.
                 val encontrado = runCatching {
-                    geocodificar(geocoder, "${limpiarDireccion(lugar.direccion)}, Chile", ZONA_BIOBIO_NUBLE, maximo = 5)
-                        .firstOrNull { dentroDeZona(it.latitude, it.longitude) && mismaComuna(lugar.direccion, it.locality, it.subAdminArea) }
+                    geocodificar(geocoder, "${limpiarDireccion(lugar.direccion)}, Chile", zonaBusqueda(), maximo = 5)
+                        .firstOrNull { enRegiones(it.latitude, it.longitude) && mismaComuna(lugar.direccion, it.locality, it.subAdminArea) }
                 }.getOrNull()
                 if (encontrado != null) withContext(Dispatchers.IO) { dao.ubicar(lugar.id, encontrado.latitude, encontrado.longitude) }
             }
@@ -181,8 +202,8 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         if (!Geocoder.isPresent()) return null
         val geocoder = Geocoder(context, Locale.forLanguageTag("es-CL"))
         return listOf(limpiarDireccion(lugar.direccion), lugar.direccion.substringAfterLast(',').trim()).firstNotNullOfOrNull { texto ->
-            runCatching { geocodificar(geocoder, "$texto, Chile", ZONA_BIOBIO_NUBLE) }.getOrNull()
-                ?.firstOrNull { dentroDeZona(it.latitude, it.longitude) }?.let { it.latitude to it.longitude }
+            runCatching { geocodificar(geocoder, "$texto, Chile", zonaBusqueda()) }.getOrNull()
+                ?.firstOrNull { enRegiones(it.latitude, it.longitude) }?.let { it.latitude to it.longitude }
         }
     }
 
@@ -215,7 +236,7 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
             )
         }
         val ubicacion = ubicacionActual()
-        val aqui = ubicacion?.takeIf { (lat, lng) -> dentroDeZona(lat, lng) }
+        val aqui = ubicacion?.takeIf { (lat, lng) -> enRegiones(lat, lng) }
         val origen = when {
             aqui != null -> "sale desde tu ubicación"
             ubicacion != null -> "sale desde el centro de Concepción: estás fuera de las regiones con mapa"

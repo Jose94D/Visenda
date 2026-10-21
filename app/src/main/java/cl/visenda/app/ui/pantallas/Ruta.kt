@@ -58,7 +58,7 @@ fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
     }
     Column(modifier) {
         Box(Modifier.fillMaxWidth().weight(0.42f)) {
-            MapaOffline(estado.archivoMapa, ruta.trazado, ruta.paradas.map { it.lugar.lat!! to it.lugar.lng!! }, Modifier.fillMaxSize())
+            MapaOffline(estado.archivosMapa, ruta.trazado, ruta.paradas.map { it.lugar.lat!! to it.lugar.lng!! }, Modifier.fillMaxSize())
         }
         LazyColumn(Modifier.weight(0.58f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {

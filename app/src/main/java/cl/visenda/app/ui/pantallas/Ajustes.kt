@@ -34,7 +34,7 @@ import java.time.format.DateTimeFormatter
 fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
     val d = estado.datos
     val corto = DateTimeFormatter.ofPattern("d MMM", ES)
-    val teselas = remember(estado) { estado.dirTeselas.walk().count { it.extension == "gph" } }
+    val regiones = remember(estado.archivosMapa) { estado.mapas.instaladas().size }
 
     LazyColumn(modifier, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Text("Ajustes", fontSize = 26.sp, fontWeight = FontWeight.SemiBold) }
@@ -67,11 +67,23 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
 
         item { TituloSeccion("Mapas sin conexión") }
         item {
-            Lista(listOf(
-                "Biobío y Ñuble (prueba)" to if (teselas > 0 && estado.archivoMapa.exists())
-                    "Rutas: $teselas teselas · Mapa: ${estado.archivoMapa.length() / 1_000_000} MB" else "No descargados",
-                "Elegir regiones" to "Disponible en el hito 3",
-            ))
+            Tarjeta(Modifier.clickable { nav.ir(Pantalla.Regiones) }) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Iconos.Lugar, null, tint = Colores.Azul, modifier = Modifier.size(20.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Elegir regiones", fontSize = 15.sp)
+                        Text(
+                            when {
+                                regiones > 0 -> "$regiones ${if (regiones == 1) "región descargada" else "regiones descargadas"}"
+                                estado.archivosMapa.isNotEmpty() -> "Biobío y Ñuble de prueba (Hito 1): descarga las regiones para reemplazarlos"
+                                else -> "Ninguna descargada: sin ellas no hay rutas"
+                            },
+                            color = Colores.Secundario, fontSize = 13.sp,
+                        )
+                    }
+                    Icon(Iconos.Siguiente, null, tint = Colores.Secundario, modifier = Modifier.size(18.dp))
+                }
+            }
         }
 
         item { TituloSeccion("Planificación") }

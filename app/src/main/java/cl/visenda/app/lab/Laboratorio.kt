@@ -181,6 +181,6 @@ fun Laboratorio(modifier: Modifier = Modifier) {
             Text(if (verMapa) "Ocultar mapa" else "Ver mapa offline")
         }
         resultados.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-        if (verMapa) MapaOffline(archivoMapa, ruta, puntos, Modifier.fillMaxWidth().weight(1f))
+        if (verMapa) MapaOffline(listOf(archivoMapa), ruta, puntos, Modifier.fillMaxWidth().weight(1f))
     }
 }
