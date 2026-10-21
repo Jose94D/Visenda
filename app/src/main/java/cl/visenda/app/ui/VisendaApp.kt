@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import cl.visenda.app.lab.Laboratorio
 import cl.visenda.app.ui.pantallas.Ajustes
 import cl.visenda.app.ui.pantallas.Clientes
+import cl.visenda.app.ui.pantallas.EditarEmpresa
 import cl.visenda.app.ui.pantallas.Importar
 import cl.visenda.app.ui.pantallas.Inicio
 import cl.visenda.app.ui.pantallas.Perfil
@@ -47,6 +48,7 @@ sealed interface Pantalla {
     data object SinUbicar : Pantalla
     data object Regiones : Pantalla
     data object Respaldo : Pantalla
+    data class EditarEmpresa(val empresaId: Long) : Pantalla
     data class Ubicar(val lugarId: Long) : Pantalla
 }
 
@@ -115,6 +117,7 @@ fun VisendaApp() {
                 Pantalla.SinUbicar -> SinUbicar(estado, nav, m)
                 Pantalla.Regiones -> Regiones(estado, nav, m)
                 Pantalla.Respaldo -> Respaldo(estado, nav, m)
+                is Pantalla.EditarEmpresa -> EditarEmpresa(estado, nav, actual.empresaId, m)
                 is Pantalla.Ubicar -> Ubicar(estado, nav, actual.lugarId, m)
             }
         }

@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -19,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cl.visenda.app.dominio.cicloVigente
 import cl.visenda.app.ui.AppEstado
 import cl.visenda.app.ui.Colores
 import cl.visenda.app.ui.Iconos
@@ -55,14 +58,18 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
 
         item { TituloSeccion("Empresas y ciclos") }
         item {
-            Lista(d.empresas.map { e ->
-                val ciclo = d.ciclos.filter { it.empresaId == e.id }.maxByOrNull { it.fin }
+            Lista(alTocar = { i -> nav.ir(Pantalla.EditarEmpresa(d.empresas[i].id)) }, filas = d.empresas.map { e ->
+                val ciclo = d.cicloVigente(e.id, estado.hoy) ?: d.ciclos.filter { it.empresaId == e.id }.maxByOrNull { it.fin }
                 val cats = d.categorias.filter { it.empresaId == e.id }
                 e.nombre to listOfNotNull(
                     ciclo?.let { "${it.nombre}: ${LocalDate.ofEpochDay(it.inicio).format(corto)} – ${LocalDate.ofEpochDay(it.fin).format(corto)}" },
                     if (cats.isEmpty()) null else "Visitas por categoría: " + cats.joinToString(" · ") { "${it.nombre} ${it.frecuencia}" },
                 ).joinToString("\n")
             })
+        }
+
+        item {
+            OutlinedButton(onClick = { nav.ir(Pantalla.EditarEmpresa(0)) }, shape = RoundedCornerShape(12.dp)) { Text("Agregar empresa") }
         }
 
         item { TituloSeccion("Mapas sin conexión") }
@@ -123,14 +130,20 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
 }
 
 @Composable
-private fun Lista(filas: List<Pair<String, String>>) {
+private fun Lista(filas: List<Pair<String, String>>, alTocar: ((Int) -> Unit)? = null) {
     Tarjeta(relleno = 0.dp) {
         Column {
             filas.forEachIndexed { i, (titulo, detalle) ->
                 if (i > 0) HorizontalDivider(color = Colores.Separador)
-                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(titulo, fontSize = 15.sp)
-                    Text(detalle, color = Colores.Secundario, fontSize = 13.sp)
+                Row(
+                    Modifier.fillMaxWidth().then(if (alTocar != null) Modifier.clickable { alTocar(i) } else Modifier).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(titulo, fontSize = 15.sp)
+                        Text(detalle, color = Colores.Secundario, fontSize = 13.sp)
+                    }
+                    if (alTocar != null) Icon(Iconos.Siguiente, null, tint = Colores.Secundario, modifier = Modifier.size(18.dp))
                 }
             }
         }

@@ -37,7 +37,7 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 
 - **Importar el kardex** desde `.xlsx`: propone qué es cada columna, agrupa las filas de un mismo cliente con varias oficinas, entiende los horarios más comunes y deja "por revisar" los que no. Reimportar actualiza sin duplicar ni borrar visitas. Las direcciones se ubican solas con el geocodificador de Android.
 
-- **Ciclos por empresa**, con frecuencias por categoría y aviso de clientes en riesgo antes del cierre del ciclo.
+- **Ciclos por empresa**, con frecuencias por categoría y aviso de clientes en riesgo antes del cierre del ciclo. Las empresas, sus ciclos y categorías se crean y editan en Ajustes; eliminar una empresa pide escribir su nombre.
 - **Varias empresas a la vez**: una misma visita puede contar para más de una.
 - **Clientes con varias oficinas**, cada una con su horario, incluido el horario partido.
 - **Planificar el día**: sugiere a quién visitar y calcula el orden óptimo respetando los horarios de atención. Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno. Después de las 18:00 planifica el día hábil siguiente.

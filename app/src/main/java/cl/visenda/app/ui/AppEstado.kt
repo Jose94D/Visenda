@@ -13,7 +13,10 @@ import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import cl.visenda.app.data.Categoria
+import cl.visenda.app.data.Ciclo
 import cl.visenda.app.data.Cliente
+import cl.visenda.app.data.Empresa
 import cl.visenda.app.data.DatosDemo
 import cl.visenda.app.data.Lugar
 import cl.visenda.app.data.VisendaDatabase
@@ -265,6 +268,18 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         }
         withContext(Dispatchers.Main) { seleccion = emptyList(); ruta = null }
         recargar()
+    }
+
+    suspend fun guardarEmpresa(e: Empresa, ciclos: List<Ciclo>, categorias: List<Categoria>) {
+        withContext(Dispatchers.IO) { dao.guardarEmpresaCompleta(e, ciclos, categorias) }
+        recargar()
+    }
+
+    suspend fun eliminarEmpresa(id: Long) {
+        withContext(Dispatchers.IO) { dao.eliminarEmpresa(id) }
+        recargar()
+        seleccion = seleccion.filter { c -> datos.clientes.any { it.id == c } }
+        ruta = null
     }
 
     fun quitarDeCartera(empresaId: Long, clientes: List<Long>) = scope.launch {

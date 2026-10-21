@@ -100,6 +100,32 @@ interface VisendaDao {
         guardarMapeo(c.mapeo)
     }
 
+    @Insert suspend fun insertarEmpresa(e: Empresa): Long
+    @Query("DELETE FROM ciclos WHERE empresaId = :empresa") suspend fun borrarCiclos(empresa: Long)
+    @Query("DELETE FROM categorias WHERE empresaId = :empresa AND id NOT IN (:conservar)") suspend fun borrarCategoriasMenos(empresa: Long, conservar: List<Long>)
+
+    /**
+     * Ajustes > Empresas y ciclos. Los ciclos se reemplazan (nada depende de ellos); las categorías se actualizan
+     * por id para no perder la categoría de cada cliente, y las quitadas dejan a sus clientes con la frecuencia por defecto.
+     */
+    @Transaction
+    suspend fun guardarEmpresaCompleta(e: Empresa, ciclos: List<Ciclo>, categorias: List<Categoria>): Long {
+        val id = if (e.id == 0L) insertarEmpresa(e) else e.id.also { guardarEmpresa(e) }
+        borrarCiclos(id)
+        ciclos(ciclos.map { it.copy(id = 0, empresaId = id) })
+        borrarCategoriasMenos(id, categorias.map { it.id }.filter { it != 0L })
+        guardarCategorias(categorias.map { it.copy(empresaId = id) })
+        return id
+    }
+
+    /** RN-12: la empresa con sus ciclos, categorías, cartera y campos, y los clientes que quedan sin ninguna cartera. */
+    @Transaction
+    suspend fun eliminarEmpresa(id: Long) {
+        borrarEmpresas(listOf(id))
+        borrarClientesSinCartera()
+        borrarLugaresSinAtencion()
+    }
+
     /** RN-09: el usuario decide quitar de la cartera a los que ya no vienen en el kardex; los que quedan sin cartera se borran (RN-12). */
     @Transaction
     suspend fun quitarDeCartera(empresa: Long, clientes: List<Long>) {
