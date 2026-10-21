@@ -37,6 +37,12 @@ import cl.visenda.app.importar.limpiarDireccion
 import cl.visenda.app.importar.mapeoDeTexto
 import cl.visenda.app.importar.mismaComuna
 import cl.visenda.app.mapas.GestorMapas
+import cl.visenda.app.data.NOMBRE_BASE
+import cl.visenda.app.data.VERSION_ESQUEMA
+import cl.visenda.app.respaldo.Manifiesto
+import cl.visenda.app.respaldo.RespaldoInvalido
+import cl.visenda.app.respaldo.cifrarRespaldo
+import cl.visenda.app.respaldo.descifrarRespaldo
 import cl.visenda.app.ui.decodificarPolilinea
 import com.valhalla.valhalla.Valhalla
 import com.valhalla.valhalla.config.ValhallaConfigFactory
@@ -76,7 +82,8 @@ val SALIDA = -36.8270 to -73.0503
 
 /** Estado de toda la app. Una sola instancia, creada en VisendaApp. */
 class AppEstado(private val context: Context, private val scope: CoroutineScope) {
-    private val dao = VisendaDatabase.get(context).dao()
+    // Getter: al restaurar un respaldo la base se cierra y se vuelve a abrir.
+    private val dao get() = VisendaDatabase.get(context).dao()
     val mapas = GestorMapas(context)
     /** Un .pmtiles por región descargada; cambia al instalar o borrar regiones. */
     var archivosMapa by mutableStateOf(mapas.archivosMapa())
@@ -210,6 +217,53 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
     /** CA-7.1: queda marcada como ajustada a mano, así una reimportación no la pisa. */
     fun corregirUbicacion(lugarId: Long, lat: Double, lng: Double) = scope.launch {
         withContext(Dispatchers.IO) { dao.corregirUbicacion(lugarId, lat, lng) }
+        recargar()
+    }
+
+    /** RN-13: la base completa más un manifiesto, cifrada con la contraseña. El usuario elige dónde guardarla. */
+    suspend fun crearRespaldo(destino: Uri, contrasena: CharArray) = withContext(Dispatchers.IO) {
+        val db = VisendaDatabase.get(context)
+        // Pasa al archivo principal lo que aún está en el registro WAL, para copiar un solo archivo completo.
+        db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+        val base = context.getDatabasePath(NOMBRE_BASE).readBytes()
+        val manifiesto = Manifiesto(
+            versionApp = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?",
+            esquema = VERSION_ESQUEMA, fecha = System.currentTimeMillis(), clientes = datos.clientes.size,
+            regiones = mapas.instaladas().sorted(),
+        )
+        val archivo = withContext(Dispatchers.Default) { cifrarRespaldo(manifiesto, base, contrasena) }
+        context.contentResolver.openOutputStream(destino, "wt")?.use { it.write(archivo) } ?: throw RespaldoInvalido("No se pudo escribir el respaldo.")
+    }
+
+    /** Descifra y valida sin tocar los datos actuales. */
+    suspend fun leerRespaldo(origen: Uri, contrasena: CharArray): Pair<Manifiesto, ByteArray> = withContext(Dispatchers.IO) {
+        val archivo = context.contentResolver.openInputStream(origen)?.use { it.readBytes() } ?: throw RespaldoInvalido("No se pudo abrir el archivo.")
+        val (manifiesto, base) = withContext(Dispatchers.Default) { descifrarRespaldo(archivo, contrasena) }
+        if (manifiesto.esquema > VERSION_ESQUEMA) throw RespaldoInvalido("El respaldo es de una versión más nueva de Visenda (${manifiesto.versionApp}). Actualiza la app para restaurarlo.")
+        manifiesto to base
+    }
+
+    /** Reemplaza todos los datos. Si la base restaurada no abre, vuelve la anterior: nunca queda el teléfono sin datos. */
+    suspend fun restaurarRespaldo(base: ByteArray) = withContext(Dispatchers.IO) {
+        val actual = context.getDatabasePath(NOMBRE_BASE)
+        val anterior = File(actual.path + ".anterior")
+        val extras = listOf("-wal", "-shm", "-journal").map { File(actual.path + it) }
+        VisendaDatabase.get(context).openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+        VisendaDatabase.cerrar()
+        anterior.delete()
+        if (!actual.renameTo(anterior)) throw RespaldoInvalido("No se pudo preparar la restauración.")
+        extras.forEach { it.delete() }
+        try {
+            actual.writeBytes(base)
+            dao.empresas() // abre la base (y la migra si es de un esquema anterior)
+            anterior.delete()
+        } catch (e: Exception) {
+            VisendaDatabase.cerrar()
+            actual.delete(); extras.forEach { it.delete() }
+            anterior.renameTo(actual)
+            throw RespaldoInvalido("No se pudo restaurar el respaldo; tus datos quedaron como estaban. (${e.message})")
+        }
+        withContext(Dispatchers.Main) { seleccion = emptyList(); ruta = null }
         recargar()
     }
 

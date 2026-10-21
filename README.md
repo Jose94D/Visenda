@@ -4,7 +4,7 @@ App Android para visitadores en terreno (visitadores médicos y oficios similare
 
 Funciona **100% dentro del teléfono**: sin servidor, sin cuentas y sin que los datos salgan del dispositivo. Rutas y mapas también son offline.
 
-> **Estado:** Hito 2 terminado. El prototipo es navegable con datos de ejemplo y calcula rutas reales sin internet; está en validación con visitadores. Hito 3 en curso: ya funcionan el optimizador de ruta, el importador del kardex, la corrección de ubicaciones en el mapa y la descarga de mapas por región; sigue el respaldo cifrado.
+> **Estado:** Hito 2 terminado. El prototipo es navegable con datos de ejemplo y calcula rutas reales sin internet; está en validación con visitadores. Hito 3 terminado (falta la validación con visitadores): optimizador de ruta, importador del kardex, corrección de ubicaciones en el mapa, descarga de mapas por región y respaldo cifrado.
 >
 > Avance del proyecto: [tablero en Trello](https://trello.com/b/AAhJ7hXT/visenda).
 
@@ -41,6 +41,7 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 - **Varias empresas a la vez**: una misma visita puede contar para más de una.
 - **Clientes con varias oficinas**, cada una con su horario, incluido el horario partido.
 - **Planificar el día**: sugiere a quién visitar y calcula el orden óptimo respetando los horarios de atención. Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno. Después de las 18:00 planifica el día hábil siguiente.
+- **Respaldo cifrado** para cambiar de teléfono: un archivo `.visenda` con AES-256-GCM y una clave derivada de tu contraseña (PBKDF2). Sin la contraseña no se puede leer ni recuperar.
 - **Mapas por región:** se descargan desde Ajustes las 16 regiones de Chile, con descarga que se reanuda, opción "Solo con Wi-Fi" y verificación de cada archivo.
 - **Ruta y mapa offline** con Valhalla y MapLibre; las rutas cruzan de una región descargada a otra. La ruta parte desde la ubicación del teléfono.
 - **Ubicar en el mapa** las direcciones que el geocodificador no encontró, o corregir una mal ubicada; la corrección no se pierde al reimportar.
@@ -48,7 +49,7 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 
 **Próximos hitos:**
 
-- Respaldo cifrado para traspasar los datos a otro teléfono y bloqueo con huella.
+- Bloqueo con huella y base de datos cifrada (Hito 4).
 
 ## Privacidad
 

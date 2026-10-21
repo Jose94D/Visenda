@@ -90,7 +90,18 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
         item { Lista(listOf("Tiempo por visita" to "$MINUTOS_POR_VISITA minutos", "Aviso de riesgo" to "5 días hábiles antes del cierre")) }
 
         item { TituloSeccion("Seguridad y respaldo") }
-        item { Lista(listOf("Bloqueo con huella" to "Disponible en el hito 4", "Respaldo cifrado" to "Disponible en el hito 3")) }
+        item {
+            Tarjeta(Modifier.clickable { nav.ir(Pantalla.Respaldo) }) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Respaldo cifrado", fontSize = 15.sp)
+                        Text("Crear o restaurar, para cambiar de teléfono", color = Colores.Secundario, fontSize = 13.sp)
+                    }
+                    Icon(Iconos.Siguiente, null, tint = Colores.Secundario, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+        item { Lista(listOf("Bloqueo con huella" to "Disponible en el hito 4")) }
 
         item { TituloSeccion("Desarrollo") }
         item {
