@@ -1,5 +1,10 @@
 package cl.visenda.app.ui
 
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.DisposableEffect
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -77,8 +82,24 @@ fun VisendaApp() {
     val estado = remember { AppEstado(context.applicationContext, scope) }
     val nav = remember { Navegador() }
     BackHandler(enabled = nav.pila.size > 1) { nav.volver() }
+    val ciclo = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(ciclo) {
+        val observador = LifecycleEventObserver { _, evento ->
+            when (evento) {
+                Lifecycle.Event.ON_STOP -> estado.alIrAFondo()
+                Lifecycle.Event.ON_START -> estado.alVolver()
+                else -> Unit
+            }
+        }
+        ciclo.addObserver(observador)
+        onDispose { ciclo.removeObserver(observador) }
+    }
 
     TemaVisenda {
+        if (estado.bloqueado) {
+            Surface(color = Colores.Fondo) { PantallaBloqueo { estado.desbloquear() } }
+            return@TemaVisenda
+        }
         val actual = nav.actual
         val esPestana = PESTANAS.any { it.pantalla::class == actual::class }
         Scaffold(

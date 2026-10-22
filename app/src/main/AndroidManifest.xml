@@ -9,10 +9,15 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Bloqueo de la app con huella o el PIN del teléfono (Ajustes > Seguridad). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
     <!-- Sin respaldo automático: los datos del kardex nunca deben salir del teléfono (Ley 21.719). -->
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Visenda"

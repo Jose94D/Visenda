@@ -31,6 +31,7 @@ import cl.visenda.app.dominio.SIN_VIAJE
 import cl.visenda.app.dominio.estadosDe
 import cl.visenda.app.dominio.horariosDelDia
 import cl.visenda.app.dominio.optimizar
+import cl.visenda.app.dominio.exportarCliente
 import cl.visenda.app.importar.Cambios
 import cl.visenda.app.importar.LectorXlsx
 import cl.visenda.app.importar.Rol
@@ -40,6 +41,7 @@ import cl.visenda.app.importar.limpiarDireccion
 import cl.visenda.app.importar.mapeoDeTexto
 import cl.visenda.app.importar.mismaComuna
 import cl.visenda.app.mapas.GestorMapas
+import cl.visenda.app.data.BaseCifrada
 import cl.visenda.app.data.NOMBRE_BASE
 import cl.visenda.app.data.VERSION_ESQUEMA
 import cl.visenda.app.respaldo.Manifiesto
@@ -125,6 +127,30 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
     }
 
     private fun enRegiones(lat: Double, lng: Double) = mapas.zonas().any { dentroDeZona(lat, lng, it) }
+
+    private val prefsSeguridad = context.getSharedPreferences("seguridad", Context.MODE_PRIVATE)
+
+    /** Ajustes > Bloqueo con huella o PIN. */
+    var bloqueoActivo by mutableStateOf(prefsSeguridad.getBoolean("bloqueo", false))
+        private set
+
+    /** La app está tapada hasta verificar: al abrirse y al volver tras MINUTOS_SIN_BLOQUEO en segundo plano (CA-8.2). */
+    var bloqueado by mutableStateOf(bloqueoActivo)
+        private set
+    private var enFondoDesde: Long? = null
+
+    fun activarBloqueo(activo: Boolean) {
+        prefsSeguridad.edit().putBoolean("bloqueo", activo).apply()
+        bloqueoActivo = activo
+    }
+
+    fun desbloquear() { bloqueado = false }
+    fun alIrAFondo() { enFondoDesde = System.currentTimeMillis() }
+    fun alVolver() {
+        val desde = enFondoDesde ?: return
+        enFondoDesde = null
+        if (bloqueoActivo && System.currentTimeMillis() - desde >= MINUTOS_SIN_BLOQUEO * 60_000L) bloqueado = true
+    }
 
     /** Texto de avance mientras se ubican las direcciones importadas; null si no hay nada en curso. */
     var progresoImportacion by mutableStateOf<String?>(null)
@@ -228,7 +254,14 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         val db = VisendaDatabase.get(context)
         // Pasa al archivo principal lo que aún está en el registro WAL, para copiar un solo archivo completo.
         db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-        val base = context.getDatabasePath(NOMBRE_BASE).readBytes()
+        // La base está cifrada con la clave de este teléfono: el respaldo lleva una copia sin cifrar, cifrada después con la contraseña.
+        val temporal = File(context.cacheDir, "respaldo.db")
+        val base = try {
+            BaseCifrada.descifrar(context.getDatabasePath(NOMBRE_BASE), BaseCifrada.clave(context), temporal)
+            temporal.readBytes()
+        } finally {
+            listOf("", "-journal", "-wal", "-shm").forEach { File(temporal.path + it).delete() }
+        }
         val manifiesto = Manifiesto(
             versionApp = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?",
             esquema = VERSION_ESQUEMA, fecha = System.currentTimeMillis(), clientes = datos.clientes.size,
@@ -258,7 +291,7 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         extras.forEach { it.delete() }
         try {
             actual.writeBytes(base)
-            dao.empresas() // abre la base (y la migra si es de un esquema anterior)
+            dao.empresas() // abre la base: la cifra con la clave de este teléfono y la migra si es de un esquema anterior
             anterior.delete()
         } catch (e: Exception) {
             VisendaDatabase.cerrar()
@@ -280,6 +313,19 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         recargar()
         seleccion = seleccion.filter { c -> datos.clientes.any { it.id == c } }
         ruta = null
+    }
+
+    suspend fun eliminarCliente(id: Long) {
+        withContext(Dispatchers.IO) { dao.eliminarCliente(id) }
+        seleccion = seleccion - id
+        ruta = null
+        recargar()
+    }
+
+    /** CA-5.3: texto con todo lo guardado del cliente, donde el usuario elija. */
+    suspend fun exportarCliente(id: Long, destino: Uri) = withContext(Dispatchers.IO) {
+        val texto = datos.exportarCliente(id, java.time.LocalDateTime.now())
+        context.contentResolver.openOutputStream(destino, "wt")?.use { it.write(texto.toByteArray()) } ?: throw java.io.IOException("No se pudo escribir el archivo.")
     }
 
     fun quitarDeCartera(empresaId: Long, clientes: List<Long>) = scope.launch {

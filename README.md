@@ -1,4 +1,6 @@
-# Visenda
+<p align="center">
+  <img src="docs/banner.webp" alt="Visenda: app Android para visitadores en terreno">
+</p>
 
 App Android para visitadores en terreno (visitadores médicos y oficios similares). Importa el kardex de clientes desde Excel, controla las visitas de cada ciclo por empresa y calcula la ruta óptima del día según los horarios de atención de cada cliente.
 
@@ -41,6 +43,8 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 - **Varias empresas a la vez**: una misma visita puede contar para más de una.
 - **Clientes con varias oficinas**, cada una con su horario, incluido el horario partido.
 - **Planificar el día**: sugiere a quién visitar y calcula el orden óptimo respetando los horarios de atención. Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno. Después de las 18:00 planifica el día hábil siguiente.
+- **Derechos de datos** (Ley 21.719): desde el perfil se exportan en un archivo de texto todos los datos guardados de un cliente, o se elimina por completo, confirmando con su nombre.
+- **Seguridad:** la base de datos va cifrada con SQLCipher (AES-256) y su clave queda protegida por el Keystore del teléfono. Desde Ajustes se activa el bloqueo con huella o el PIN del teléfono, al abrir la app y al volver tras 5 minutos.
 - **Respaldo cifrado** para cambiar de teléfono: un archivo `.visenda` con AES-256-GCM y una clave derivada de tu contraseña (PBKDF2). Sin la contraseña no se puede leer ni recuperar.
 - **Mapas por región:** se descargan desde Ajustes las 16 regiones de Chile, con descarga que se reanuda, opción "Solo con Wi-Fi" y verificación de cada archivo.
 - **Ruta y mapa offline** con Valhalla y MapLibre; las rutas cruzan de una región descargada a otra. La ruta parte desde la ubicación del teléfono.
@@ -49,7 +53,6 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 
 **Próximos hitos:**
 
-- Bloqueo con huella y base de datos cifrada (Hito 4).
 
 ## Privacidad
 
@@ -68,12 +71,29 @@ Diseñado considerando la Ley 21.719 de protección de datos personales de Chile
 | Pieza | Elección |
 |---|---|
 | Lenguaje e interfaz | Kotlin + Jetpack Compose (Material 3) |
-| Base de datos | Room (SQLite) |
+| Base de datos | Room sobre SQLCipher (SQLite cifrado) |
 | Rutas offline | Valhalla (valhalla-mobile), teselas por región |
 | Mapa | MapLibre con archivo PMTiles offline (Protomaps) |
 | Excel | Lector `.xlsx` propio, sin dependencias |
 | Optimizador | Propio en Kotlin, con ventanas de tiempo: exacto hasta 15 clientes, heurístico sobre eso |
 | Android mínimo | 8.0 (API 26) |
+
+### Base de datos
+
+Versión simplificada con las tablas principales; el diagrama completo, con columnas y las 12 tablas, está en [docs/BASE-DE-DATOS.md](docs/BASE-DE-DATOS.md).
+
+```mermaid
+erDiagram
+    EMPRESA ||--o{ CICLO : "tiene"
+    EMPRESA }o--o{ CLIENTE : "cartera"
+    CLIENTE }o--o{ LUGAR : "atiende en"
+    LUGAR ||--o{ HORARIO : "con"
+    CLIENTE ||--o{ VISITA : "recibe"
+    VISITA }o--o{ EMPRESA : "cuenta para"
+```
+
+- Un cliente puede estar en la cartera de **varias empresas** y atender en **varios lugares**, cada uno con su horario.
+- Una visita puede **contar para varias empresas** a la vez.
 
 ## Compilar
 
@@ -107,12 +127,15 @@ app/src/main/java/cl/visenda/app/
 app/schemas/                 Esquemas de Room versionados (para migraciones)
 docs/
 ├── ESPECIFICACION.md        Pantallas, reglas de negocio y criterios de aceptación
+├── BASE-DE-DATOS.md         Diagrama y descripción de las tablas
 ├── Plan-de-desarrollo.pdf   Hitos y calendario
+├── banner.webp              Banner de este README
 └── capturas/                Imágenes de este README
 ```
 
 ## Documentación
 
 - [Especificación](docs/ESPECIFICACION.md)
+- [Base de datos](docs/BASE-DE-DATOS.md)
 - [Plan de desarrollo](docs/Plan-de-desarrollo.pdf)
 - [Tablero de avance (Trello)](https://trello.com/b/AAhJ7hXT/visenda)

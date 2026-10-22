@@ -19,6 +19,7 @@ room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 valhalla-mobile = { group = "io.github.rallista", name = "valhalla-mobile", version.ref = "valhallaMobile" }
 maplibre = { group = "org.maplibre.gl", name = "android-sdk", version = "13.7.1" }
+sqlcipher = { group = "net.zetetic", name = "sqlcipher-android", version = "4.19.1" }
 junit = { group = "junit", name = "junit", version = "4.13.2" }
 valhalla-models-config ={ group = "io.github.rallista", name = "valhalla-models-config", version = "0.6.0" }
 

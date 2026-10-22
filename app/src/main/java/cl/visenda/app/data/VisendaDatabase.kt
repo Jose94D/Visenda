@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /** Subirla junto con cada migración: un respaldo de un esquema más nuevo que este se rechaza (RN-13). */
 const val VERSION_ESQUEMA = 1
@@ -26,8 +27,12 @@ abstract class VisendaDatabase : RoomDatabase() {
         @Volatile private var instancia: VisendaDatabase? = null
 
         fun get(context: Context): VisendaDatabase = instancia ?: synchronized(this) {
-            instancia ?: Room.databaseBuilder(context.applicationContext, VisendaDatabase::class.java, NOMBRE_BASE)
-                .build().also { instancia = it }
+            instancia ?: run {
+                BaseCifrada.migrarSiHaceFalta(context.applicationContext)
+                Room.databaseBuilder(context.applicationContext, VisendaDatabase::class.java, NOMBRE_BASE)
+                    .openHelperFactory(SupportOpenHelperFactory(BaseCifrada.clave(context.applicationContext).toByteArray()))
+                    .build().also { instancia = it }
+            }
         }
 
         /** Para reemplazar el archivo al restaurar un respaldo. El próximo get() la vuelve a abrir. */

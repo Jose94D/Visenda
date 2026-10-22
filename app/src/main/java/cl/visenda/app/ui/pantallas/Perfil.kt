@@ -1,6 +1,17 @@
 package cl.visenda.app.ui.pantallas
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -77,6 +88,35 @@ fun Perfil(estado: AppEstado, nav: Navegador, clienteId: Long, modifier: Modifie
     val telefono = d.campos.firstOrNull { it.clienteId == clienteId && it.campo.startsWith("Tel", ignoreCase = true) }?.valor
     val visitadoHoy = estado.visitadoHoy(clienteId)
     val enPlan = clienteId in estado.seleccion
+    val scope = rememberCoroutineScope()
+    var eliminar by remember { mutableStateOf(false) }
+    var aviso by remember { mutableStateOf<String?>(null) }
+    val exportar = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        if (uri != null) scope.launch {
+            aviso = runCatching { estado.exportarCliente(clienteId, uri) }.fold({ "Datos exportados." }, { "No se pudo exportar: ${it.message}" })
+        }
+    }
+    if (eliminar) {
+        var confirmacion by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { eliminar = false },
+            title = { Text("¿Eliminar a ${cliente.nombre}?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Se borran todos sus datos: empresas, campos del kardex, lugares, horarios y visitas. No se puede deshacer.")
+                    Text("Escribe su nombre para confirmar:", fontSize = 13.sp)
+                    OutlinedTextField(confirmacion, { confirmacion = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { eliminar = false; scope.launch { estado.eliminarCliente(clienteId); nav.volver() } },
+                    enabled = confirmacion.trim() == cliente.nombre,
+                ) { Text("Eliminar", color = Colores.Naranja) }
+            },
+            dismissButton = { TextButton(onClick = { eliminar = false }) { Text("Cancelar") } },
+        )
+    }
 
     LazyColumn(modifier, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
@@ -186,6 +226,19 @@ fun Perfil(estado: AppEstado, nav: Navegador, clienteId: Long, modifier: Modifie
                         }
                     }
                 }
+            }
+        }
+        item { TituloSeccion("Datos personales") }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { exportar.launch("visenda-${cliente.nombre.filter { it.isLetterOrDigit() }}.txt") },
+                    shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth(),
+                ) { Text("Exportar datos de este cliente") }
+                OutlinedButton(onClick = { eliminar = true }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text("Eliminar cliente", color = Colores.Naranja)
+                }
+                aviso?.let { Text(it, color = Colores.Secundario, fontSize = 13.sp) }
             }
         }
     }

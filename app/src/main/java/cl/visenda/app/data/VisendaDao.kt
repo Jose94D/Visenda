@@ -126,6 +126,15 @@ interface VisendaDao {
         borrarLugaresSinAtencion()
     }
 
+    @Query("DELETE FROM clientes WHERE id = :id") suspend fun borrarCliente(id: Long)
+
+    /** RN-12 / CA-5.4: en cascada se van cartera, campos, atenciones, horarios y visitas; luego los lugares que nadie más usa. */
+    @Transaction
+    suspend fun eliminarCliente(id: Long) {
+        borrarCliente(id)
+        borrarLugaresSinAtencion()
+    }
+
     /** RN-09: el usuario decide quitar de la cartera a los que ya no vienen en el kardex; los que quedan sin cartera se borran (RN-12). */
     @Transaction
     suspend fun quitarDeCartera(empresa: Long, clientes: List<Long>) {

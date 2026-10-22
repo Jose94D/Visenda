@@ -47,6 +47,8 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.room.runtime)
+
+    implementation(libs.sqlcipher) // base de datos cifrada (Hito 4)
     ksp(libs.room.compiler)
 
     implementation(libs.valhalla.mobile)

@@ -1,5 +1,13 @@
 package cl.visenda.app.ui.pantallas
 
+import cl.visenda.app.ui.telefonoConBloqueo
+import cl.visenda.app.ui.rememberVerificacion
+import cl.visenda.app.ui.MINUTOS_SIN_BLOQUEO
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.Switch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -108,7 +116,32 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                 }
             }
         }
-        item { Lista(listOf("Bloqueo con huella" to "Disponible en el hito 4")) }
+        item {
+            val context = LocalContext.current
+            var aviso by remember { mutableStateOf<String?>(null) }
+            // Activar o desactivar pide verificar: así nadie que tome el teléfono desbloqueado puede quitarlo.
+            val verificar = rememberVerificacion(
+                if (estado.bloqueoActivo) "Confirma para desactivar el bloqueo" else "Confirma para activar el bloqueo",
+                alVerificar = { estado.activarBloqueo(!estado.bloqueoActivo); aviso = null },
+                alFallar = { aviso = it },
+            )
+            Tarjeta {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Bloqueo con huella o PIN", fontSize = 15.sp)
+                        Text(
+                            "Al abrir Visenda y al volver después de $MINUTOS_SIN_BLOQUEO minutos. Usa el bloqueo del teléfono.",
+                            color = Colores.Secundario, fontSize = 13.sp,
+                        )
+                    }
+                    Switch(checked = estado.bloqueoActivo, onCheckedChange = {
+                        if (!telefonoConBloqueo(context)) aviso = "Primero configura un bloqueo de pantalla (PIN, patrón o huella) en los ajustes del teléfono."
+                        else verificar()
+                    })
+                }
+                aviso?.let { Text(it, color = Colores.Naranja, fontSize = 13.sp) }
+            }
+        }
 
         item { TituloSeccion("Desarrollo") }
         item {
