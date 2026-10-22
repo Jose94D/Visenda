@@ -56,7 +56,7 @@ class CiclosTest {
 
     @Test
     fun diasHabiles() {
-        assertEquals(12, diasHabilesRestantes(hoy, LocalDate.of(2026, 10, 31)))
+        assertEquals(12, Reglas().diasHabilesRestantes(hoy, LocalDate.of(2026, 10, 31)))
     }
 
     @Test
@@ -80,5 +80,29 @@ class CiclosTest {
             visitaEmpresa = base.visitaEmpresa + VisitaEmpresa(3, 1),
         )
         assertEquals(Estado.COMPLETO, conOtra.estadoEn(conOtra.cartera[1], hoy).estado)
+    }
+
+    @Test
+    fun urgenciaSegunLosDiasQueLeQuedanAtendiendo() {
+        // Soto: 0 de 3 y le quedan 3 jueves: hay que verlo todos esos días (fracción 1).
+        val soto = base.urgencia(3, hoy, hoy)!!
+        assertEquals(Urgencia(3, 3, false, KM_POR_VISITA + KM_POR_URGENCIA), soto)
+        assertEquals("Le quedan 3 días en que atiende · faltan 3 · de pasada", explicar(soto, 0.5))
+        // Rojas: 1 de 2 y le quedan 4 días (19, 21, 26 y 28): fracción 1/4.
+        assertEquals(KM_POR_VISITA + KM_POR_URGENCIA / 4, base.urgencia(1, hoy, hoy)!!.premio, 1e-9)
+        assertEquals("Faltan 1 · desvío de 6 km", explicar(base.urgencia(1, hoy, hoy)!!, 6.2))
+        // A cinco días hábiles del cierre todo está en riesgo y pesa más.
+        val tarde = LocalDate.of(2026, 10, 26)
+        assertEquals(true, base.urgencia(2, tarde, tarde)!!.enRiesgo)
+        assertEquals("En riesgo · faltan 1", explicar(base.urgencia(2, tarde, tarde)!!, null))
+        // Completo: nada que sugerir.
+        assertEquals(null, base.copy(visitas = base.visitas + Visita(9, 2, 1, ms(hoy), null), visitaEmpresa = base.visitaEmpresa + VisitaEmpresa(9, 1)).urgencia(2, hoy, hoy))
+    }
+
+    @Test
+    fun elAvisoDeRiesgoSeAjusta() {
+        // Muñoz: 0 de 1, quedan 12 días hábiles. Con aviso de 12 días ya está en riesgo.
+        assertEquals(Estado.PENDIENTE, base.estadoEn(base.cartera[1], hoy).estado)
+        assertEquals(Estado.EN_RIESGO, base.copy(reglas = Reglas(diasAviso = 12)).estadoEn(base.cartera[1], hoy).estado)
     }
 }

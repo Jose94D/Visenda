@@ -1,0 +1,9 @@
+<resources>
+    <!-- Android 12+: la pantalla de arranque del sistema queda del color de la bienvenida y sin ícono,
+         así pasa directo a la animación del logo (ui/Bienvenida.kt) sin mostrar el pin dos veces. -->
+    <style name="Theme.Visenda" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo_banner</item>
+        <item name="android:windowSplashScreenBackground">@color/fondo_banner</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>

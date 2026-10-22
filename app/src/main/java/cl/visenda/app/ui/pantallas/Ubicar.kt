@@ -37,7 +37,7 @@ import cl.visenda.app.ui.Iconos
 import cl.visenda.app.ui.MapaOffline
 import cl.visenda.app.ui.Navegador
 import cl.visenda.app.ui.Pantalla
-import cl.visenda.app.ui.SALIDA
+import cl.visenda.app.ui.CENTRO_POR_DEFECTO
 import cl.visenda.app.ui.Tarjeta
 
 /** Pantalla 5.7: el pin queda fijo al centro y el usuario mueve el mapa debajo. */
@@ -50,7 +50,7 @@ fun Ubicar(estado: AppEstado, nav: Navegador, lugarId: Long, modifier: Modifier)
     // Sin estado de Compose: si el mapa se recompusiera con cada movimiento, volvería al punto inicial.
     val elegido = remember { doubleArrayOf(0.0, 0.0) }
     LaunchedEffect(lugarId) {
-        val punto = estado.sugerirUbicacion(lugar) ?: SALIDA
+        val punto = estado.sugerirUbicacion(lugar) ?: CENTRO_POR_DEFECTO
         elegido[0] = punto.first; elegido[1] = punto.second
         inicio = punto
     }
@@ -117,6 +117,45 @@ fun SinUbicar(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** Punto de partida de la ruta, elegido moviendo el mapa como en Ubicar. Queda solo en memoria: no se guarda. */
+@Composable
+fun ElegirPartida(estado: AppEstado, nav: Navegador, modifier: Modifier) {
+    var inicio by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    val elegido = remember { doubleArrayOf(0.0, 0.0) }
+    LaunchedEffect(Unit) {
+        val punto = estado.centroParaPartida()
+        elegido[0] = punto.first; elegido[1] = punto.second
+        inicio = punto
+    }
+
+    Column(modifier) {
+        Row(Modifier.padding(start = 8.dp, top = 8.dp, end = 20.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { nav.volver() }) { Icon(Iconos.Atras, "Volver") }
+            Text("Punto de partida", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            val punto = inicio
+            if (punto == null) CircularProgressIndicator()
+            else {
+                MapaOffline(estado.archivosMapa, emptyList(), emptyList(), Modifier.fillMaxSize(), centro = punto) { lat, lng ->
+                    elegido[0] = lat; elegido[1] = lng
+                }
+                Icon(Iconos.Lugar, "Punto elegido", tint = Colores.Azul, modifier = Modifier.size(44.dp).offset(y = (-20).dp))
+            }
+        }
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "Mueve el mapa hasta que el pin quede donde empiezas. Se usa solo para la próxima ruta y no se guarda.",
+                color = Colores.Secundario, fontSize = 13.sp,
+            )
+            Button(
+                onClick = { estado.partidaElegida = elegido[0] to elegido[1]; nav.volver() },
+                enabled = inicio != null, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) { Text("Partir desde aquí", fontWeight = FontWeight.SemiBold) }
         }
     }
 }

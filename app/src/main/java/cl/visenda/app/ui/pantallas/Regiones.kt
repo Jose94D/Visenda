@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import cl.visenda.app.mapas.EstadoRegion
 import cl.visenda.app.mapas.Region
 import cl.visenda.app.ui.AppEstado
+import cl.visenda.app.ui.AvisarFocoDeDialogo
 import cl.visenda.app.ui.BarraProgreso
 import cl.visenda.app.ui.Colores
 import cl.visenda.app.ui.Iconos
@@ -141,7 +142,7 @@ fun Regiones(estado: AppEstado, nav: Navegador, modifier: Modifier) {
     aBorrar?.let { r ->
         AlertDialog(
             onDismissRequest = { aBorrar = null },
-            title = { Text("¿Borrar ${r.nombre}?") },
+            title = { AvisarFocoDeDialogo(); Text("¿Borrar ${r.nombre}?") },
             text = { Text("Se liberan ${mb(r.bytes)}. Los clientes de esa región no entran a las rutas hasta volver a descargarla.") },
             confirmButton = {
                 TextButton(onClick = {

@@ -27,6 +27,15 @@ import cl.visenda.app.dominio.Motivo
 import cl.visenda.app.dominio.Opcion
 import cl.visenda.app.dominio.Paso
 import cl.visenda.app.dominio.Pedido
+import cl.visenda.app.dominio.urgencia
+import cl.visenda.app.dominio.explicar
+import cl.visenda.app.dominio.desvios
+import cl.visenda.app.dominio.PREMIO_ELEGIDO_EN_RIESGO
+import cl.visenda.app.dominio.PREMIO_ELEGIDO
+import cl.visenda.app.dominio.KM_POR_VISITA
+import cl.visenda.app.dominio.Plan
+import cl.visenda.app.dominio.Jornada
+import cl.visenda.app.dominio.Reglas
 import cl.visenda.app.dominio.SIN_VIAJE
 import cl.visenda.app.dominio.estadosDe
 import cl.visenda.app.dominio.horariosDelDia
@@ -76,14 +85,27 @@ data class RutaDelDia(
     val termina: Int,
     val trazado: List<Pair<Double, Double>>,
     val fuera: List<Pair<Cliente, Motivo>>,
-    /** Desde dónde parte, para mostrarlo: la ubicación del teléfono o SALIDA, con el motivo. */
+    /** Desde dónde parte, para mostrarlo: la ubicación del teléfono o el punto elegido. */
     val origen: String,
+    /** (hora de inicio, índice de la parada después de la cual se almuerza; 0 = antes de la primera). */
+    val colacion: Pair<Int, Int>? = null,
+    /** Llegada de vuelta al punto de partida, si se pidió volver. */
+    val vuelta: Int? = null,
 )
 
-const val MINUTOS_POR_VISITA = 15
+/** Centro del mapa cuando no hay otro punto: Concepción. */
+val CENTRO_POR_DEFECTO = -36.8270 to -73.0503
 
-// shortcut: sin ubicación del teléfono la ruta sale del centro de Concepción; agregar una dirección de salida en Ajustes.
-val SALIDA = -36.8270 to -73.0503
+/** Candidatos que se mandan a Valhalla y al optimizador al sugerir. */
+const val MAXIMO_CANDIDATOS = 35
+
+/** Distancia en línea recta (haversine), en km. */
+fun kmEnLinea(a: Pair<Double, Double>, b: Pair<Double, Double>): Double {
+    val r = Math.PI / 180
+    val h = Math.pow(Math.sin((b.first - a.first) * r / 2), 2.0) +
+        Math.cos(a.first * r) * Math.cos(b.first * r) * Math.pow(Math.sin((b.second - a.second) * r / 2), 2.0)
+    return 2 * 6371 * Math.asin(Math.sqrt(h))
+}
 
 /** Estado de toda la app. Una sola instancia, creada en VisendaApp. */
 class AppEstado(private val context: Context, private val scope: CoroutineScope) {
@@ -130,6 +152,31 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
 
     private val prefsSeguridad = context.getSharedPreferences("seguridad", Context.MODE_PRIVATE)
 
+    private val prefsPlan = context.getSharedPreferences("planificacion", Context.MODE_PRIVATE)
+
+    /** Ajustes > Planificación. Van también dentro de datos porque cambian los estados de los clientes. */
+    var reglas by mutableStateOf(Reglas().let { d ->
+        with(prefsPlan) {
+            Reglas(
+                getInt("minutosVisita", d.minutosVisita), getInt("diasAviso", d.diasAviso), getInt("salida", d.salida),
+                getInt("finJornada", d.finJornada), getInt("colacion", d.colacion), getInt("colacionDesde", d.colacionDesde),
+                getInt("colacionHasta", d.colacionHasta), getBoolean("sabados", d.sabados), getBoolean("volver", d.volver),
+            )
+        }
+    })
+        private set
+
+    fun guardarReglas(r: Reglas) {
+        prefsPlan.edit()
+            .putInt("minutosVisita", r.minutosVisita).putInt("diasAviso", r.diasAviso).putInt("salida", r.salida)
+            .putInt("finJornada", r.finJornada).putInt("colacion", r.colacion).putInt("colacionDesde", r.colacionDesde)
+            .putInt("colacionHasta", r.colacionHasta).putBoolean("sabados", r.sabados).putBoolean("volver", r.volver)
+            .apply()
+        reglas = r
+        datos = datos.copy(reglas = r)
+        ruta = null
+    }
+
     /** Ajustes > Bloqueo con huella o PIN. */
     var bloqueoActivo by mutableStateOf(prefsSeguridad.getBoolean("bloqueo", false))
         private set
@@ -155,6 +202,9 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
     /** Texto de avance mientras se ubican las direcciones importadas; null si no hay nada en curso. */
     var progresoImportacion by mutableStateOf<String?>(null)
         private set
+    /** Fracción 0..1 mientras se ubican las direcciones; null mientras se guarda (sin porcentaje). */
+    var fraccionImportacion by mutableStateOf<Float?>(null)
+        private set
 
     init {
         scope.launch {
@@ -176,7 +226,7 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
 
     private suspend fun recargar() {
         hoy = LocalDate.now()
-        datos = withContext(Dispatchers.IO) { dao.todo() }
+        datos = withContext(Dispatchers.IO) { dao.todo() }.copy(reglas = reglas)
     }
 
     /** RN-05: la visita cuenta para todas las empresas donde el cliente tiene visitas pendientes. */
@@ -219,6 +269,7 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
             val geocoder = Geocoder(context, Locale.forLanguageTag("es-CL"))
             pendientes.forEachIndexed { i, lugar ->
                 progresoImportacion = "Ubicando direcciones: ${i + 1} de ${pendientes.size}"
+                fraccionImportacion = i.toFloat() / pendientes.size
                 // Solo sale la dirección, nunca el nombre ni el RUT (RN-11, RN-14).
                 val encontrado = runCatching {
                     geocodificar(geocoder, "${limpiarDireccion(lugar.direccion)}, Chile", zonaBusqueda(), maximo = 5)
@@ -229,6 +280,7 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
             recargar()
         }
         progresoImportacion = null
+        fraccionImportacion = null
         alTerminar(datos.lugares.count { it.lat == null })
     }
 
@@ -334,63 +386,118 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         seleccion = seleccion.filter { id -> datos.clientes.any { it.id == id } }
     }
 
-    /** RN-07: el optimizador elige lugar y orden con los tiempos de Valhalla; luego se pide el trazado de ese orden. */
-    fun calcularRuta(fecha: LocalDate, salidaMinutos: Int, finJornada: Int, alTerminar: () -> Unit) = scope.launch {
-        errorRuta = null
-        val dia = fecha.dayOfWeek
-        val opciones = seleccion.associateWith { id -> datos.horariosDelDia(id, dia).filter { (l, _) -> l.lat != null && l.lng != null } }
-        val lugares = opciones.values.flatten().map { it.first }.distinctBy { it.id }
-        if (lugares.isEmpty()) {
-            errorRuta = "Ninguno de los clientes elegidos atiende ese día."
-            return@launch
-        }
-        val pedidos = seleccion.map { id ->
-            Pedido(
-                id, datos.estadosDe(id, hoy).any { it.estado == Estado.EN_RIESGO },
-                opciones.getValue(id).map { (l, tramos) -> Opcion(1 + lugares.indexOf(l), tramos.map { it.abre to it.cierra }) },
-            )
-        }
-        val ubicacion = ubicacionActual()
-        val aqui = ubicacion?.takeIf { (lat, lng) -> enRegiones(lat, lng) }
-        val origen = when {
-            aqui != null -> "sale desde tu ubicación"
-            ubicacion != null -> "sale desde el centro de Concepción: estás fuera de las regiones con mapa"
-            else -> "sale desde el centro de Concepción: no se obtuvo tu ubicación"
-        }
-        val salida = aqui ?: SALIDA
-        runCatching {
-            val viaje = withContext(Dispatchers.IO) { matriz(listOf(salida) + lugares.map { it.lat!! to it.lng!! }) }
-            val plan = withContext(Dispatchers.Default) { optimizar(pedidos, viaje, salidaMinutos, finJornada, MINUTOS_POR_VISITA) }
-            val fuera = plan.fuera.map { (id, motivo) -> datos.clientes.first { it.id == id } to motivo }
-            if (plan.pasos.isEmpty()) return@runCatching null
+    /** Planificar: sugerencias calculándose. */
+    var sugiriendo by mutableStateOf(false)
+        private set
+    /** Por qué se sugirió cada cliente (Planificar). */
+    var sugerencias by mutableStateOf(mapOf<Long, String>())
+        private set
 
-            // Visitas seguidas en el mismo lugar son una sola parada.
-            val tandas = mutableListOf<MutableList<Paso>>()
-            plan.pasos.forEach { p -> if (tandas.lastOrNull()?.last()?.lugar == p.lugar) tandas.last() += p else tandas += mutableListOf(p) }
-            val paradas = tandas.map { t ->
-                Parada(lugares[t[0].lugar - 1], t.map { p -> datos.clientes.first { it.id == p.clienteId } }, t[0].llegada, t[0].inicio, t.minOf { it.cierra })
+    /**
+     * Punto de partida elegido en el mapa para la próxima ruta; null = la ubicación del teléfono.
+     * Solo vive en memoria: la casa del visitador no se guarda (privacidad).
+     */
+    var partidaElegida by mutableStateOf<Pair<Double, Double>?>(null)
+
+    /** Dónde centrar el mapa para elegir la partida: la elegida, la del teléfono o el centro de los clientes. */
+    suspend fun centroParaPartida(): Pair<Double, Double> =
+        partidaElegida ?: ubicacionActual()?.takeIf { (lat, lng) -> enRegiones(lat, lng) }
+            ?: datos.lugares.filter { it.lat != null && it.lng != null }.takeIf { it.isNotEmpty() }?.let { l -> l.map { it.lat!! }.average() to l.map { it.lng!! }.average() }
+            ?: CENTRO_POR_DEFECTO
+
+    /** (punto, texto para mostrar) o un error que dice qué hacer. */
+    private suspend fun partida(): Result<Pair<Pair<Double, Double>, String>> {
+        partidaElegida?.let { return Result.success(it to "sale del punto elegido") }
+        val aqui = ubicacionActual() ?: return Result.failure(Exception("No se obtuvo tu ubicación: elige el punto de partida en el mapa."))
+        if (!enRegiones(aqui.first, aqui.second)) return Result.failure(Exception("Estás fuera de las regiones con mapa: elige el punto de partida en el mapa."))
+        return Result.success(aqui to "sale desde tu ubicación")
+    }
+
+    private fun jornada(salida: Int) = with(reglas) { Jornada(salida, finJornada, minutosVisita, colacion, colacionDesde, colacionHasta, volver) }
+
+    private class Planeado(val plan: Plan, val pedidos: List<Pedido>, val lugares: List<Lugar>, val viaje: Array<IntArray>, val km: Array<DoubleArray>)
+
+    /** Arma los pedidos con sus lugares de ese día, pide a Valhalla tiempos y km, y optimiza. null si ninguno tiene lugar ese día. */
+    private suspend fun planear(fecha: LocalDate, ids: List<Long>, desde: Pair<Double, Double>, jornada: Jornada, premio: (Long) -> Double): Planeado? {
+        val opciones = ids.associateWith { id -> datos.horariosDelDia(id, fecha.dayOfWeek).filter { (l, _) -> l.lat != null && l.lng != null } }
+        val lugares = opciones.values.flatten().map { it.first }.distinctBy { it.id }
+        if (lugares.isEmpty()) return null
+        val pedidos = ids.map { id -> Pedido(id, premio(id), opciones.getValue(id).map { (l, tramos) -> Opcion(1 + lugares.indexOf(l), tramos.map { it.abre to it.cierra }) }) }
+        val (viaje, km) = withContext(Dispatchers.IO) { matriz(listOf(desde) + lugares.map { it.lat!! to it.lng!! }) }
+        val plan = withContext(Dispatchers.Default) { optimizar(pedidos, viaje, km, jornada) }
+        return Planeado(plan, pedidos, lugares, viaje, km)
+    }
+
+    /**
+     * RN-06: entre los candidatos del día elige a quiénes conviene visitar según urgencia, km y espera, y explica por qué.
+     * Con muchos candidatos, antes de pedir la matriz a Valhalla se quedan los que más valen descontando la distancia en línea recta.
+     */
+    fun sugerir(fecha: LocalDate, salidaMinutos: Int, candidatos: List<Long>) = scope.launch {
+        errorRuta = null
+        sugiriendo = true
+        try {
+            val (desde, _) = partida().getOrElse { errorRuta = it.message; return@launch }
+            val urgencias = candidatos.associateWith { datos.urgencia(it, hoy, fecha) }
+            val premio = { id: Long -> urgencias[id]?.premio ?: KM_POR_VISITA }
+            val cerca = { id: Long ->
+                datos.horariosDelDia(id, fecha.dayOfWeek).mapNotNull { (l, _) -> if (l.lat != null && l.lng != null) kmEnLinea(desde, l.lat to l.lng) else null }
+                    .minOrNull() ?: Double.MAX_VALUE
             }
-            val puntos = listOf(salida) + paradas.map { it.lugar.lat!! to it.lugar.lng!! }
+            // shortcut: la recta subestima el camino ~30 %; si quedan fuera clientes que convenían, subir MAXIMO_CANDIDATOS.
+            val pool = candidatos.sortedByDescending { premio(it) - 1.3 * cerca(it) }.take(MAXIMO_CANDIDATOS)
+            val jornada = jornada(salidaMinutos)
+            val p = runCatching { planear(fecha, pool, desde, jornada, premio) }
+                .getOrElse { errorRuta = "No se pudo calcular: ${it.message}. ¿Están descargados los mapas de la región?"; return@launch }
+                ?: run { errorRuta = "Ninguno de los candidatos tiene ubicación."; return@launch }
+            val desvio = withContext(Dispatchers.Default) { desvios(p.pedidos, p.viaje, p.km, jornada, p.plan) }
+            seleccion = p.plan.pasos.map { it.clienteId }.distinct()
+            sugerencias = seleccion.associateWith { id -> urgencias[id]?.let { explicar(it, desvio[id]) } ?: "Agregado por ti" }
+            if (seleccion.isEmpty()) errorRuta = "Ningún candidato alcanza a ser visitado dentro de su horario."
+        } finally {
+            sugiriendo = false
+        }
+    }
+
+    /** RN-07: el optimizador elige lugar y orden de los elegidos con los tiempos de Valhalla; luego se pide el trazado de ese orden. */
+    fun calcularRuta(fecha: LocalDate, salidaMinutos: Int, alTerminar: () -> Unit) = scope.launch {
+        errorRuta = null
+        val (desde, origen) = partida().getOrElse { errorRuta = it.message; return@launch }
+        runCatching {
+            val p = planear(fecha, seleccion, desde, jornada(salidaMinutos)) { id ->
+                val u = datos.urgencia(id, hoy, fecha)
+                (if (u?.enRiesgo == true) PREMIO_ELEGIDO_EN_RIESGO else PREMIO_ELEGIDO) + (u?.premio ?: 0.0)
+            } ?: return@runCatching "Ninguno de los clientes elegidos atiende ese día."
+            val plan = p.plan
+            if (plan.pasos.isEmpty()) return@runCatching "Ninguno de los elegidos alcanza a ser visitado dentro de su horario."
+
+            // Visitas seguidas en el mismo lugar, sin esperar entre ellas, son una sola parada.
+            val tandas = mutableListOf<MutableList<Paso>>()
+            plan.pasos.forEach { s -> if (tandas.lastOrNull()?.last()?.lugar == s.lugar && s.inicio == s.llegada) tandas.last() += s else tandas += mutableListOf(s) }
+            val paradas = tandas.map { t ->
+                Parada(p.lugares[t[0].lugar - 1], t.map { s -> datos.clientes.first { it.id == s.clienteId } }, t[0].llegada, t[0].inicio, t.minOf { it.cierra })
+            }
+            // Tras pasosAntes visitas: la colación va después de la parada donde se completan esas visitas.
+            val colacion = plan.colacion?.let { c -> c.inicio to tandas.runningFold(0) { n, t -> n + t.size }.indexOfFirst { it >= c.pasosAntes } }
+            val puntos = listOf(desde) + paradas.map { it.lugar.lat!! to it.lugar.lng!! } + listOfNotNull(desde.takeIf { plan.vuelta != null })
             val json = puntos.joinToString(",", """{"locations":[""", """],"costing":"auto","directions_type":"none"}""") { (lat, lon) ->
                 """{"lat":$lat,"lon":$lon}"""
             }
             val trayecto = JSONObject(withContext(Dispatchers.IO) { motor.routeRaw(json) }).getJSONObject("trip")
             val tramos = trayecto.getJSONArray("legs")
-            RutaDelDia(
+            ruta = RutaDelDia(
                 fecha = fecha,
                 paradas = paradas,
                 km = trayecto.getJSONObject("summary").getDouble("length"),
                 termina = plan.termina,
                 trazado = (0 until tramos.length()).flatMap { decodificarPolilinea(tramos.getJSONObject(it).getString("shape")) },
-                fuera = fuera,
+                fuera = plan.fuera.map { (id, motivo) -> datos.clientes.first { it.id == id } to motivo },
                 origen = origen,
+                colacion = colacion,
+                vuelta = plan.vuelta,
             )
+            null
         }.onSuccess {
-            if (it == null) errorRuta = "Ninguno de los elegidos alcanza a ser visitado dentro de su horario."
-            else {
-                ruta = it
-                alTerminar()
-            }
+            if (it != null) errorRuta = it else alTerminar()
         }.onFailure {
             errorRuta = "No se pudo calcular la ruta: ${it.message}. ¿Están descargados los mapas de la región?"
         }
@@ -418,20 +525,21 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         return (actual ?: ultima())?.let { it.latitude to it.longitude }
     }
 
-    /** Minutos de manejo entre todos los puntos (redondeados hacia arriba); SIN_VIAJE si Valhalla no encuentra camino. */
-    private fun matriz(puntos: List<Pair<Double, Double>>): Array<IntArray> {
+    /** Minutos de manejo (redondeados hacia arriba) y km entre todos los puntos; SIN_VIAJE si Valhalla no encuentra camino. */
+    private fun matriz(puntos: List<Pair<Double, Double>>): Pair<Array<IntArray>, Array<DoubleArray>> {
         val lista = puntos.joinToString(",", "[", "]") { (lat, lon) -> """{"lat":$lat,"lon":$lon}""" }
         val filas = JSONObject(motor.matrixRaw("""{"sources":$lista,"targets":$lista,"costing":"auto"}""")).getJSONArray("sources_to_targets")
-        return Array(puntos.size) { i ->
-            val fila = filas.get(i) as JSONArray
+        val celda = { i: Int, j: Int -> (filas.get(i) as JSONArray).getJSONObject(j) }
+        val minutos = Array(puntos.size) { i ->
             IntArray(puntos.size) { j ->
-                val celda = fila.getJSONObject(j)
                 when {
                     i == j -> 0
-                    celda.isNull("time") -> SIN_VIAJE
-                    else -> Math.ceil(celda.getDouble("time") / 60).toInt()
+                    celda(i, j).isNull("time") -> SIN_VIAJE
+                    else -> Math.ceil(celda(i, j).getDouble("time") / 60).toInt()
                 }
             }
         }
+        val km = Array(puntos.size) { i -> DoubleArray(puntos.size) { j -> if (i == j) 0.0 else celda(i, j).optDouble("distance", 0.0) } }
+        return minutos to km
     }
 }

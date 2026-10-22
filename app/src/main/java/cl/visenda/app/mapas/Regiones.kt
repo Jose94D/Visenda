@@ -1,5 +1,6 @@
 package cl.visenda.app.mapas
 
+import cl.visenda.app.importar.ZONA_BIOBIO_NUBLE
 import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
@@ -102,7 +103,7 @@ class GestorMapas(private val context: Context) {
     fun zonas(): List<DoubleArray> {
         val instaladas = instaladas()
         val regiones = indiceGuardado()?.regiones?.filter { it.clave in instaladas }.orEmpty()
-        if (regiones.isEmpty()) return if (mapaAntiguo.exists()) listOf(doubleArrayOf(-38.55, -73.95, -35.95, -71.0)) else emptyList()
+        if (regiones.isEmpty()) return if (mapaAntiguo.exists()) listOf(ZONA_BIOBIO_NUBLE) else emptyList()
         return regiones.map { doubleArrayOf(it.rect[1], it.rect[0], it.rect[3], it.rect[2]) }
     }
 

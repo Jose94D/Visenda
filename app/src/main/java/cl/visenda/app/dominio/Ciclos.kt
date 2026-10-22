@@ -29,6 +29,8 @@ data class Datos(
     val horarios: List<Horario> = emptyList(),
     val visitas: List<Visita> = emptyList(),
     val visitaEmpresa: List<VisitaEmpresa> = emptyList(),
+    /** Ajustes de planificación: no vienen de la base, pero cambian los estados (aviso de riesgo, días hábiles). */
+    val reglas: Reglas = Reglas(),
 )
 
 /** Ordenados de peor a mejor: la lista de clientes muestra el peor estado entre empresas (RN-04). */
@@ -60,15 +62,10 @@ fun Datos.visitasContadas(clienteId: Long, empresaId: Long, ciclo: Ciclo): Int {
     return visitas.count { it.clienteId == clienteId && it.id in deLaEmpresa && fechaDeVisita(it).epoch() in ciclo.inicio..ciclo.fin }
 }
 
-/** Días lunes a viernes entre hoy y el fin del ciclo, incluido hoy. */
-fun diasHabilesRestantes(hoy: LocalDate, fin: LocalDate): Int =
-    generateSequence(hoy) { it.plusDays(1) }.takeWhile { !it.isAfter(fin) }
-        .count { it.dayOfWeek != DayOfWeek.SATURDAY && it.dayOfWeek != DayOfWeek.SUNDAY }
-
-/** Días entre hoy y el fin en que el cliente atiende en alguna oficina (horarios por revisar no cuentan). */
+/** Días hábiles entre hoy y el fin en que el cliente atiende en alguna oficina (horarios por revisar no cuentan). */
 fun Datos.diasQueAtiendeRestantes(clienteId: Long, hoy: LocalDate, fin: LocalDate): Int {
     val dias = diasQueAtiende(clienteId)
-    return generateSequence(hoy) { it.plusDays(1) }.takeWhile { !it.isAfter(fin) }.count { it.dayOfWeek.value in dias }
+    return generateSequence(hoy) { it.plusDays(1) }.takeWhile { !it.isAfter(fin) }.count { it.dayOfWeek.value in dias && reglas.esHabil(it) }
 }
 
 fun Datos.diasQueAtiende(clienteId: Long): Set<Int> {
@@ -77,7 +74,7 @@ fun Datos.diasQueAtiende(clienteId: Long): Set<Int> {
 }
 
 /** RN-04 */
-fun Datos.estadoEn(c: Cartera, hoy: LocalDate, diasAviso: Int = 5): EstadoEnEmpresa {
+fun Datos.estadoEn(c: Cartera, hoy: LocalDate): EstadoEnEmpresa {
     val empresa = empresas.first { it.id == c.empresaId }
     val requeridas = frecuenciaRequerida(c)
     val ciclo = cicloVigente(c.empresaId, hoy) ?: return EstadoEnEmpresa(empresa, 0, requeridas, Estado.SIN_CICLO)
@@ -86,7 +83,7 @@ fun Datos.estadoEn(c: Cartera, hoy: LocalDate, diasAviso: Int = 5): EstadoEnEmpr
     val fin = LocalDate.ofEpochDay(ciclo.fin)
     val estado = when {
         faltan <= 0 -> Estado.COMPLETO
-        diasHabilesRestantes(hoy, fin) <= diasAviso || diasQueAtiendeRestantes(c.clienteId, hoy, fin) < faltan -> Estado.EN_RIESGO
+        reglas.diasHabilesRestantes(hoy, fin) <= reglas.diasAviso || diasQueAtiendeRestantes(c.clienteId, hoy, fin) < faltan -> Estado.EN_RIESGO
         else -> Estado.PENDIENTE
     }
     return EstadoEnEmpresa(empresa, hechas, requeridas, estado)

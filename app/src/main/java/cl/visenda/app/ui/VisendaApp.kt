@@ -1,5 +1,12 @@
 package cl.visenda.app.ui
 
+import androidx.lifecycle.compose.currentStateAsState
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.Lifecycle
@@ -26,7 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import cl.visenda.app.lab.Laboratorio
 import cl.visenda.app.ui.pantallas.Ajustes
 import cl.visenda.app.ui.pantallas.Clientes
 import cl.visenda.app.ui.pantallas.EditarEmpresa
@@ -39,6 +45,7 @@ import cl.visenda.app.ui.pantallas.Respaldo
 import cl.visenda.app.ui.pantallas.Ruta
 import cl.visenda.app.ui.pantallas.SinUbicar
 import cl.visenda.app.ui.pantallas.Ubicar
+import cl.visenda.app.ui.pantallas.ElegirPartida
 import cl.visenda.app.dominio.Estado
 
 sealed interface Pantalla {
@@ -48,10 +55,10 @@ sealed interface Pantalla {
     data object Ajustes : Pantalla
     data class Perfil(val clienteId: Long) : Pantalla
     data object Planificar : Pantalla
-    data object Laboratorio : Pantalla
     data object Importar : Pantalla
     data object SinUbicar : Pantalla
     data object Regiones : Pantalla
+    data object ElegirPartida : Pantalla
     data object Respaldo : Pantalla
     data class EditarEmpresa(val empresaId: Long) : Pantalla
     data class Ubicar(val lugarId: Long) : Pantalla
@@ -95,13 +102,28 @@ fun VisendaApp() {
         onDispose { ciclo.removeObserver(observador) }
     }
 
+    // Con el bloqueo activo, la app se tapa con la portada del logo apenas pierde el foco (gesto de Recientes, salir,
+    // bajar las notificaciones): así la miniatura que guarda Android no muestra datos, en todas las versiones.
+    val enfocada = LocalWindowInfo.current.isWindowFocused
+    val etapa by ciclo.currentStateAsState()
+    val tapar = estado.bloqueoActivo && ((!enfocada && dialogosEnfocados.intValue == 0) || !etapa.isAtLeast(Lifecycle.State.RESUMED))
+
+    // La bienvenida va una vez por apertura (rememberSaveable: no se repite al girar el teléfono).
+    var bienvenidaLista by rememberSaveable { mutableStateOf(false) }
+
     TemaVisenda {
+        if (!bienvenidaLista) {
+            Bienvenida(estado.cargado) { bienvenidaLista = true }
+            return@TemaVisenda
+        }
         if (estado.bloqueado) {
             Surface(color = Colores.Fondo) { PantallaBloqueo { estado.desbloquear() } }
             return@TemaVisenda
         }
         val actual = nav.actual
         val esPestana = PESTANAS.any { it.pantalla::class == actual::class }
+        // La portada va encima, sin quitar la app: no se pierde lo que estaba en curso (por ejemplo, una importación).
+        Box(Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Colores.Fondo,
             bottomBar = {
@@ -133,14 +155,16 @@ fun VisendaApp() {
                 Pantalla.Ajustes -> Ajustes(estado, nav, m)
                 is Pantalla.Perfil -> Perfil(estado, nav, actual.clienteId, m)
                 Pantalla.Planificar -> Planificar(estado, nav, m)
-                Pantalla.Laboratorio -> Laboratorio(m.padding(24.dp))
                 Pantalla.Importar -> Importar(estado, nav, m)
                 Pantalla.SinUbicar -> SinUbicar(estado, nav, m)
                 Pantalla.Regiones -> Regiones(estado, nav, m)
+                Pantalla.ElegirPartida -> ElegirPartida(estado, nav, m)
                 Pantalla.Respaldo -> Respaldo(estado, nav, m)
                 is Pantalla.EditarEmpresa -> EditarEmpresa(estado, nav, actual.empresaId, m)
                 is Pantalla.Ubicar -> Ubicar(estado, nav, actual.lugarId, m)
             }
+        }
+        if (tapar) Portada()
         }
     }
 }

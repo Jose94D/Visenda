@@ -41,5 +41,4 @@ object Iconos {
     val Flecha = icono("M5 12h14M13 6l6 6-6 6")
     val Importar = icono("M12 3v12M7 10l5 5 5-5M5 21h14")
     val Candado = icono("M6 11h12v10H6z", "M8 11V7a4 4 0 0 1 8 0v4")
-    val Laboratorio = icono("M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3")
 }

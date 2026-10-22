@@ -48,6 +48,7 @@ import cl.visenda.app.dominio.FRECUENCIAS
 import cl.visenda.app.dominio.cicloSiguiente
 import cl.visenda.app.dominio.validarEmpresa
 import cl.visenda.app.ui.AppEstado
+import cl.visenda.app.ui.AvisarFocoDeDialogo
 import cl.visenda.app.ui.Colores
 import cl.visenda.app.ui.Iconos
 import cl.visenda.app.ui.Navegador
@@ -168,7 +169,7 @@ fun EditarEmpresa(estado: AppEstado, nav: Navegador, empresaId: Long, modifier: 
         var confirmacion by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { eliminar = false },
-            title = { Text("¿Eliminar ${original.nombre}?") },
+            title = { AvisarFocoDeDialogo(); Text("¿Eliminar ${original.nombre}?") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Se borran sus ciclos, categorías y cartera. $seBorran ${if (seBorran == 1) "cliente queda" else "clientes quedan"} sin ninguna empresa y se borran con sus visitas. No se puede deshacer.")
@@ -216,5 +217,5 @@ private fun SelectorFecha(dia: Long, alCerrar: () -> Unit, alElegir: (Long) -> U
         onDismissRequest = alCerrar,
         confirmButton = { TextButton(onClick = { estado.selectedDateMillis?.let { alElegir(it / DIA_MS) } ?: alCerrar() }) { Text("Aceptar") } },
         dismissButton = { TextButton(onClick = alCerrar) { Text("Cancelar") } },
-    ) { DatePicker(estado) }
+    ) { AvisarFocoDeDialogo(); DatePicker(estado) }
 }

@@ -68,12 +68,21 @@ fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    "${ruta.paradas.size} paradas · ${"%.1f".format(ruta.km)} km · termina ${hora(ruta.termina)} · " +
-                        ruta.origen,
+                    "${ruta.paradas.size} paradas · ${"%.1f".format(ruta.km)} km · termina ${hora(ruta.termina)}" +
+                        (ruta.vuelta?.let { " · de vuelta ${hora(it)}" } ?: "") + " · " + ruta.origen,
                     color = Colores.Secundario, fontSize = 13.sp,
                 )
             }
             ruta.paradas.forEachIndexed { i, p ->
+                // La colación tomada mientras se espera que abra no es espera.
+                val almuerzaEsperando = ruta.colacion?.let { (inicio, antes) -> antes == i && inicio >= p.llegada } == true
+                val espera = p.espera - if (almuerzaEsperando) estado.reglas.colacion else 0
+                if (ruta.colacion?.second == i) item {
+                    Row(Modifier.padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Iconos.Reloj, null, tint = Colores.Secundario, modifier = Modifier.size(18.dp))
+                        Text("Colación a las ${hora(ruta.colacion.first)} · ${estado.reglas.colacion} min", color = Colores.Secundario, fontSize = 14.sp)
+                    }
+                }
                 item {
                     val todosVisitados = p.clientes.all { estado.visitadoHoy(it.id) }
                     Tarjeta(relleno = 14.dp) {
@@ -93,7 +102,8 @@ fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                                 Text(p.lugar.direccion, color = Colores.Secundario, fontSize = 13.sp)
                                 Text(p.clientes.joinToString(", ") { it.nombre }, fontSize = 13.sp)
                                 Text(
-                                    if (p.espera > 0) "Abre a las ${hora(p.inicio)} (esperas ${p.espera} min) · hasta ${hora(p.cierra)}"
+                                    if (espera > 0) "Abre a las ${hora(p.inicio)} (esperas $espera min) · hasta ${hora(p.cierra)}"
+                                    else if (p.espera > 0) "Abre a las ${hora(p.inicio)} · hasta ${hora(p.cierra)}"
                                     else "Atiende hasta ${hora(p.cierra)}",
                                     color = Colores.Secundario, fontSize = 13.sp,
                                 )

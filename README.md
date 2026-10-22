@@ -42,7 +42,8 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 - **Ciclos por empresa**, con frecuencias por categoría y aviso de clientes en riesgo antes del cierre del ciclo. Las empresas, sus ciclos y categorías se crean y editan en Ajustes; eliminar una empresa pide escribir su nombre.
 - **Varias empresas a la vez**: una misma visita puede contar para más de una.
 - **Clientes con varias oficinas**, cada una con su horario, incluido el horario partido.
-- **Planificar el día**: sugiere a quién visitar y calcula el orden óptimo respetando los horarios de atención. Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno. Después de las 18:00 planifica el día hábil siguiente.
+- **Planificar el día**: sugiere a quién visitar sopesando la urgencia de cada cliente en su ciclo, los km, las esperas a que abran y los horarios, y explica cada sugerencia ("en riesgo", "de pasada", "desvío de 4 km"). Calcula el orden óptimo con la colación incluida y, si se pide, la vuelta al punto de partida, que puede ser la ubicación del teléfono o un punto elegido en el mapa (no se guarda). Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno.
+- **Ajustes de planificación**: tiempo por visita, aviso de riesgo, jornada, colación y sábados. Los feriados de Chile no cuentan como días hábiles.
 - **Derechos de datos** (Ley 21.719): desde el perfil se exportan en un archivo de texto todos los datos guardados de un cliente, o se elimina por completo, confirmando con su nombre.
 - **Seguridad:** la base de datos va cifrada con SQLCipher (AES-256) y su clave queda protegida por el Keystore del teléfono. Desde Ajustes se activa el bloqueo con huella o el PIN del teléfono, al abrir la app y al volver tras 5 minutos.
 - **Respaldo cifrado** para cambiar de teléfono: un archivo `.visenda` con AES-256-GCM y una clave derivada de tu contraseña (PBKDF2). Sin la contraseña no se puede leer ni recuperar.
@@ -75,7 +76,7 @@ Diseñado considerando la Ley 21.719 de protección de datos personales de Chile
 | Rutas offline | Valhalla (valhalla-mobile), teselas por región |
 | Mapa | MapLibre con archivo PMTiles offline (Protomaps) |
 | Excel | Lector `.xlsx` propio, sin dependencias |
-| Optimizador | Propio en Kotlin, con ventanas de tiempo: exacto hasta 15 clientes, heurístico sobre eso |
+| Optimizador | Propio en Kotlin, con ventanas de tiempo y colación: exacto hasta 12 clientes; sobre eso, búsqueda en haz y búsqueda local |
 | Android mínimo | 8.0 (API 26) |
 
 ### Base de datos
@@ -121,9 +122,8 @@ app/src/main/java/cl/visenda/app/
 ├── data/                    Modelo de datos (12 tablas), Room y datos de ejemplo
 ├── dominio/                 Reglas de negocio: ciclos, estados y optimizador de ruta
 ├── importar/                Lector de Excel (.xlsx)
-├── ui/                      Navegación, tema, mapa offline y estado de la app
-│   └── pantallas/           Inicio, Clientes, Perfil, Planificar, Ruta, Ajustes
-└── lab/                     Pantallas de prueba del Hito 1
+└── ui/                      Navegación, tema, mapa offline y estado de la app
+    └── pantallas/           Inicio, Clientes, Perfil, Planificar, Ruta, Ajustes
 app/schemas/                 Esquemas de Room versionados (para migraciones)
 docs/
 ├── ESPECIFICACION.md        Pantallas, reglas de negocio y criterios de aceptación

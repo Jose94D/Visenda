@@ -48,6 +48,7 @@ import cl.visenda.app.dominio.fechaDeVisita
 import cl.visenda.app.dominio.hora
 import cl.visenda.app.dominio.horariosDelDia
 import cl.visenda.app.ui.AppEstado
+import cl.visenda.app.ui.AvisarFocoDeDialogo
 import cl.visenda.app.ui.Avatar
 import cl.visenda.app.ui.BarraProgreso
 import cl.visenda.app.ui.Colores
@@ -100,7 +101,7 @@ fun Perfil(estado: AppEstado, nav: Navegador, clienteId: Long, modifier: Modifie
         var confirmacion by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { eliminar = false },
-            title = { Text("¿Eliminar a ${cliente.nombre}?") },
+            title = { AvisarFocoDeDialogo(); Text("¿Eliminar a ${cliente.nombre}?") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Se borran todos sus datos: empresas, campos del kardex, lugares, horarios y visitas. No se puede deshacer.")

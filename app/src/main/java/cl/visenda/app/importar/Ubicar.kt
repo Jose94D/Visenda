@@ -6,7 +6,7 @@ import android.os.Build
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-/** Rectángulo de Biobío + Ñuble: sur, oeste, norte, este. Solo lo usa el laboratorio del Hito 1. */
+/** Rectángulo de Biobío + Ñuble: sur, oeste, norte, este. Zona de los mapas de prueba del Hito 1. */
 val ZONA_BIOBIO_NUBLE = doubleArrayOf(-38.55, -73.95, -35.95, -71.0)
 
 // Lo que identifica el local dentro del edificio confunde al geocoder: se quita solo para buscar (RN-10).

@@ -56,6 +56,7 @@ import cl.visenda.app.ui.AppEstado
 import cl.visenda.app.ui.Colores
 import cl.visenda.app.ui.Iconos
 import cl.visenda.app.ui.Navegador
+import cl.visenda.app.ui.ProgresoConLogo
 import cl.visenda.app.ui.Pantalla
 import cl.visenda.app.ui.Tarjeta
 import cl.visenda.app.ui.TituloSeccion
@@ -116,7 +117,9 @@ fun Importar(estado: AppEstado, nav: Navegador, modifier: Modifier) {
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             error?.let { item { Text(it, color = Colores.Naranja, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) } }
-            when (paso) {
+            if (importando) item {
+                ProgresoConLogo(estado.progresoImportacion ?: "Guardando el kardex…", estado.fraccionImportacion)
+            } else when (paso) {
                 1 -> {
                     item { TituloSeccion("Archivo") }
                     item {
@@ -217,10 +220,7 @@ fun Importar(estado: AppEstado, nav: Navegador, modifier: Modifier) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box(Modifier.weight(1f)) {
-                if (importando) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text(estado.progresoImportacion ?: "Guardando…", fontSize = 14.sp)
-                }
+
             }
             Button(
                 onClick = {

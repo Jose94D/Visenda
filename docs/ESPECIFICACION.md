@@ -75,7 +75,7 @@ Convenciones:
   - quedan ≤ N días hábiles en el ciclo (N configurable, por defecto 5);
   - los días que quedan en el ciclo en que el cliente atiende son menos que las visitas que le faltan.
 - **Pendiente:** cualquier otro caso con visitas faltantes.
-- Días hábiles: lunes a viernes, contando hoy.
+- Días hábiles: lunes a viernes (y sábados si el usuario lo eligió), sin feriados de Chile, contando hoy.
 - En listas que mezclan empresas, el cliente muestra su peor estado (en riesgo > pendiente > completo).
 
 **RN-05 Marcar visita.**
@@ -85,17 +85,22 @@ Convenciones:
 - Se puede deshacer durante 10 segundos y editar o borrar después.
 
 **RN-06 Candidatos del día.** Clientes con visitas pendientes en algún ciclo vigente, que tienen coordenadas y al menos un tramo de horario hoy que termina después de la hora de salida.
-- Orden: en riesgo primero; luego menos días restantes en que atiende; luego más visitas faltantes.
-- Se preseleccionan los primeros 8.
+- Se preseleccionan los que sugiere el optimizador (RN-07) con todos los candidatos, cada uno con el motivo: su urgencia y cuánto alarga la ruta ("de pasada" o "desvío de N km").
+- Urgencia de un cliente: por cada empresa con visitas pendientes suma 4 km + 16 km × (visitas que faltan / días hábiles que le quedan atendiendo), y 10 km más si está en riesgo. Es lo que se justifica manejar por visitarlo.
+- Con más de 35 candidatos, a Valhalla van los 35 que más valen descontando su distancia en línea recta al punto de partida.
+- Orden de la lista: los sugeridos en el orden de la ruta; después en riesgo, menos días restantes en que atiende y más visitas faltantes.
 
 **RN-07 Optimización de la ruta.**
-- Datos de entrada: hora y punto de salida, fin de jornada, clientes elegidos y tiempo de visita por cliente (por defecto 15 minutos, configurable).
+- Datos de entrada: hora y punto de salida, fin de jornada, colación, si se vuelve al punto de partida, clientes elegidos y tiempo de visita por cliente (por defecto 15 minutos, configurable).
+- Punto de partida: la ubicación del teléfono o un punto elegido en el mapa ese día. No se guarda.
 - Los clientes que atienden en el mismo lugar se agrupan en una sola parada.
 - Si un cliente atiende en varios lugares hoy, el optimizador elige uno.
 - Se puede llegar antes de que abra (se espera), pero la visita debe terminar antes del cierre: `llegada + duración ≤ cierre`.
-- Objetivo: visitar a todos los elegidos; si no caben, maximizar la cantidad de clientes en riesgo y luego el total, y después minimizar la hora de término.
+- Objetivo: maximizar la suma de las urgencias de los visitados menos los km manejados (incluida la vuelta, si se pide) y la espera a que abran (cada minuto pesa 0,15 km; la espera antes de la primera visita no cuenta).
+- Al calcular la ruta de los elegidos a mano, cada uno vale mucho más que cualquier desvío: entran todos los que caben y, si no caben, primero los en riesgo.
+- Colación (por defecto 45 minutos entre 13:00 y 15:00): se toma mientras se espera que abra un cliente si cabe; si no, lo más tarde posible dentro de su horario.
 - Los clientes que no caben se informan con el motivo (horario o fin de jornada).
-- Algoritmo exacto hasta 15 paradas; por encima, heurístico.
+- Algoritmo exacto hasta 12 clientes; por encima, búsqueda en haz más búsqueda local iterada (2-opt, or-opt, intercambios). En pruebas queda en promedio a menos de 1 km del exacto.
 - Tiempos de viaje: los calcula el motor de rutas offline (Valhalla, en auto).
 
 **RN-08 Horarios.**
@@ -146,13 +151,14 @@ Muestra el avance de cada empresa en su ciclo vigente (visitas hechas / requerid
 - CA-1.3 Sin empresas, la pantalla muestra un estado vacío con la acción "Importar kardex".
 
 ### 5.2 Planificar el día
-Hora de salida (por defecto 08:30 y la ubicación actual), fin de jornada (por defecto 18:00) y la lista de candidatos según RN-06, con casillas, estado, horario de hoy y cantidad de oficinas.
+Hora de salida y fin de jornada (de Ajustes), punto de partida (la ubicación actual o uno elegido en el mapa), "Volver al punto de partida" y la lista de candidatos según RN-06, con casillas, estado, horario de hoy, cantidad de oficinas y el motivo de cada sugerencia. Después de la jornada, o en un día no hábil, se planifica el día hábil siguiente.
 - CA-2.1 Solo aparecen clientes que cumplen RN-06, en el orden definido.
 - CA-2.2 La barra inferior muestra cuántos clientes y paradas hay, e indica cuando varios comparten lugar.
 - CA-2.3 "Calcular ruta" está deshabilitado sin clientes elegidos.
+- CA-2.4 Cada cliente sugerido muestra por qué; "Sugerir de nuevo" vuelve a calcular la sugerencia.
 
 ### 5.3 Ruta del día
-Mapa offline con la ruta y las paradas numeradas, más una lista con la hora estimada de llegada a cada parada, los clientes de cada una y el horario hasta el que atienden.
+Mapa offline con la ruta y las paradas numeradas, más una lista con la hora estimada de llegada a cada parada, los clientes de cada una, el horario hasta el que atienden, la colación y la hora de vuelta al punto de partida.
 - CA-3.1 Ninguna parada viola RN-07.
 - CA-3.2 "Marcar visita" aplica RN-05 y la parada se muestra completada.
 - CA-3.3 "Navegar" abre la app de mapas del teléfono con el destino.
@@ -191,7 +197,7 @@ Mapa centrado en el resultado del Geocoder (o en la comuna) con un pin arrastrab
 ### 5.8 Ajustes
 - **Mapas sin conexión:** lista de las 16 regiones con su estado (descargada, descargando, disponible), tamaño, fecha de actualización y espacio usado; opción "Solo con Wi‑Fi".
 - **Empresas y ciclos:** crear y editar empresas, ciclos, categorías y frecuencias; eliminar empresa (RN-12).
-- **Planificación:** tiempo de visita por defecto y días de aviso de riesgo (N).
+- **Planificación:** tiempo por visita, días de aviso de riesgo (N), hora de salida y fin de jornada, colación (duración y horario) y "Trabajo los sábados".
 - **Seguridad:** bloqueo con huella o PIN; crear y restaurar respaldo (RN-13).
 - **Legal:** política de privacidad y términos.
 

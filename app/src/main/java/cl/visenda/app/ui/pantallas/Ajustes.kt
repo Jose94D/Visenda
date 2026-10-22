@@ -33,7 +33,6 @@ import cl.visenda.app.dominio.cicloVigente
 import cl.visenda.app.ui.AppEstado
 import cl.visenda.app.ui.Colores
 import cl.visenda.app.ui.Iconos
-import cl.visenda.app.ui.MINUTOS_POR_VISITA
 import cl.visenda.app.ui.Navegador
 import cl.visenda.app.ui.Pantalla
 import cl.visenda.app.ui.Tarjeta
@@ -102,7 +101,7 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
         }
 
         item { TituloSeccion("Planificación") }
-        item { Lista(listOf("Tiempo por visita" to "$MINUTOS_POR_VISITA minutos", "Aviso de riesgo" to "5 días hábiles antes del cierre")) }
+        item { AjustesPlanificacion(estado) }
 
         item { TituloSeccion("Seguridad y respaldo") }
         item {
@@ -143,16 +142,6 @@ fun Ajustes(estado: AppEstado, nav: Navegador, modifier: Modifier) {
             }
         }
 
-        item { TituloSeccion("Desarrollo") }
-        item {
-            Tarjeta(Modifier.clickable { nav.ir(Pantalla.Laboratorio) }) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(Iconos.Laboratorio, null, tint = Colores.Azul, modifier = Modifier.size(20.dp))
-                    Text("Laboratorio del hito 1", Modifier.weight(1f))
-                    Icon(Iconos.Siguiente, null, tint = Colores.Secundario, modifier = Modifier.size(18.dp))
-                }
-            }
-        }
         item {
             Text(
                 "Tus datos se guardan solo en este teléfono. Nadie más, ni siquiera el desarrollador, tiene acceso.",

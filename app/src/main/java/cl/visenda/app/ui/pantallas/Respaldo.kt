@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import cl.visenda.app.respaldo.MINIMO_CONTRASENA
 import cl.visenda.app.respaldo.Manifiesto
 import cl.visenda.app.ui.AppEstado
+import cl.visenda.app.ui.AvisarFocoDeDialogo
 import cl.visenda.app.ui.Colores
 import cl.visenda.app.ui.Iconos
 import cl.visenda.app.ui.Navegador
@@ -162,7 +163,7 @@ fun Respaldo(estado: AppEstado, nav: Navegador, modifier: Modifier) {
         val fecha = Instant.ofEpochMilli(m.fecha).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d 'de' MMMM yyyy, HH:mm", ES))
         AlertDialog(
             onDismissRequest = { confirmar = false; leido = null },
-            title = { Text("¿Reemplazar todos los datos?") },
+            title = { AvisarFocoDeDialogo(); Text("¿Reemplazar todos los datos?") },
             text = { Text("El respaldo es del $fecha y tiene ${m.clientes} clientes. Los clientes, visitas y horarios actuales de este teléfono se borran.") },
             confirmButton = {
                 TextButton(onClick = {

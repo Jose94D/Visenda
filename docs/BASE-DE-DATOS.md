@@ -1,6 +1,6 @@
 # Base de datos
 
-Visenda guarda todo en una base Room (SQLite) dentro del teléfono. El modelo está en [`Entidades.kt`](../app/src/main/java/cl/visenda/app/data/Entidades.kt) y cada versión del esquema queda en [`app/schemas/`](../app/schemas/) para las migraciones.
+Visenda guarda todo en una base Room (SQLite) dentro del teléfono, **cifrada con SQLCipher** (ver [Cifrado](#cifrado)). El modelo está en [`Entidades.kt`](../app/src/main/java/cl/visenda/app/data/Entidades.kt) y cada versión del esquema queda en [`app/schemas/`](../app/schemas/) para las migraciones.
 
 ## Diagrama
 
@@ -122,3 +122,11 @@ erDiagram
 - **Instantes** (`fechaHora`): milisegundos desde epoch.
 - **`diaSemana`**: 1 = lunes … 7 = domingo.
 - **Borrado en cascada:** eliminar un cliente o una empresa borra todo lo que depende de él (cartera, ciclos, campos, oficinas, visitas…), para cumplir el derecho de supresión de la Ley 21.719. Si se borra una categoría, sus clientes quedan sin categoría; si se borra un lugar, sus visitas se conservan sin lugar.
+
+## Cifrado
+
+- La base (`visenda.db`) está cifrada con [SQLCipher](https://www.zetetic.net/sqlcipher/) (AES-256). Sin la clave, el archivo es ilegible aunque alguien lo copie del teléfono.
+- La clave son 32 bytes al azar generados la primera vez. Se guardan envueltos por una llave del **Android Keystore**, que no se puede extraer del teléfono. Ver [`BaseCifrada.kt`](../app/src/main/java/cl/visenda/app/data/BaseCifrada.kt).
+- Una base sin cifrar (de una versión anterior de la app o recién restaurada desde un respaldo) se cifra sola al abrirse. La original se conserva hasta confirmar que la cifrada quedó bien.
+- Como la clave queda atada al teléfono, para cambiar de equipo se usa el **respaldo cifrado** (`.visenda`): lleva una copia de la base descifrada, cifrada a su vez con AES-256-GCM y la contraseña del usuario (PBKDF2). Ver [`Respaldo.kt`](../app/src/main/java/cl/visenda/app/respaldo/Respaldo.kt).
+- Si se borran los datos de la app o se desinstala, la clave se pierde y la base no se puede recuperar: solo queda restaurar un respaldo.
