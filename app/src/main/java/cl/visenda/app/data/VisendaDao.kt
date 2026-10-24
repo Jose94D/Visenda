@@ -61,6 +61,8 @@ interface VisendaDao {
     @Upsert suspend fun guardarCategorias(f: List<Categoria>)
     @Upsert suspend fun guardarClientes(f: List<Cliente>)
     @Upsert suspend fun guardarCartera(f: List<Cartera>)
+    @Query("UPDATE cartera SET frecuenciaManual = :visitas WHERE clienteId = :cliente AND empresaId = :empresa")
+    suspend fun fijarVisitas(cliente: Long, empresa: Long, visitas: Int?)
     @Upsert suspend fun guardarLugares(f: List<Lugar>)
     @Upsert suspend fun guardarAtenciones(f: List<Atencion>)
     @Upsert suspend fun guardarMapeo(m: MapeoImport)

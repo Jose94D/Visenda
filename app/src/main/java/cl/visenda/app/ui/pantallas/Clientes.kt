@@ -53,10 +53,13 @@ fun Clientes(estado: AppEstado, nav: Navegador, filtroInicial: Estado?, modifier
     val d = estado.datos
     var busqueda by rememberSaveable { mutableStateOf("") }
     var filtro by rememberSaveable { mutableStateOf(filtroInicial) }
+    var empresaId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     data class Fila(val cliente: Cliente, val estado: Estado, val hechas: Int, val requeridas: Int, val comuna: String)
-    val filas = d.clientes.map { c ->
-        val estados = d.estadosDe(c.id, estado.hoy)
+    // Con una empresa elegida, el estado y el avance son solo los de esa empresa.
+    val filas = d.clientes.mapNotNull { c ->
+        val estados = d.estadosDe(c.id, estado.hoy).filter { empresaId == null || it.empresa.id == empresaId }
+        if (empresaId != null && estados.isEmpty()) return@mapNotNull null
         val lugar = d.atenciones.firstOrNull { it.clienteId == c.id }?.let { a -> d.lugares.firstOrNull { it.id == a.lugarId } }
         Fila(c, estados.minOfOrNull { it.estado } ?: Estado.SIN_CICLO, estados.sumOf { it.hechas }, estados.sumOf { it.requeridas },
             lugar?.direccion?.substringAfterLast(',')?.trim().orEmpty())
@@ -71,7 +74,7 @@ fun Clientes(estado: AppEstado, nav: Navegador, filtroInicial: Estado?, modifier
         item {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Clientes", fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-                Text("${d.clientes.size}", fontSize = 17.sp, color = Colores.Secundario, modifier = Modifier.padding(bottom = 3.dp))
+                Text("${filas.size}", fontSize = 17.sp, color = Colores.Secundario, modifier = Modifier.padding(bottom = 3.dp))
             }
         }
         item {
@@ -81,6 +84,16 @@ fun Clientes(estado: AppEstado, nav: Navegador, filtroInicial: Estado?, modifier
                 leadingIcon = { Icon(Iconos.Buscar, null) }, shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White, unfocusedBorderColor = Colores.Borde),
             )
+        }
+        if (d.empresas.size > 1) item {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                (listOf<Pair<Long?, String>>(null to "Todas las empresas") + d.empresas.map { it.id to it.nombre }).forEach { (id, nombre) ->
+                    FilterChip(
+                        selected = empresaId == id, onClick = { empresaId = id }, label = { Text(nombre) },
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Colores.Azul, selectedLabelColor = Color.White, containerColor = Color.White),
+                    )
+                }
+            }
         }
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

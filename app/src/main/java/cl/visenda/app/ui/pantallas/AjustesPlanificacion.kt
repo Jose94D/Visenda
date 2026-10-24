@@ -44,18 +44,18 @@ fun AjustesPlanificacion(estado: AppEstado) {
     var editando by remember { mutableStateOf<Campo?>(null) }
     Tarjeta(relleno = 0.dp) {
         Column {
-            Fila("Tiempo por visita", "${r.minutosVisita} minutos") { editando = Campo.VISITA }
+            Fila("Tiempo por visita", "${r.minutosVisita} minutos por cliente") { editando = Campo.VISITA }
             HorizontalDivider(color = Colores.Separador)
-            Fila("Aviso de riesgo", "${r.diasAviso} días hábiles antes del cierre") { editando = Campo.AVISO }
+            Fila("Aviso de clientes en riesgo", "Desde ${r.diasAviso} días hábiles antes de que termine el ciclo") { editando = Campo.AVISO }
             HorizontalDivider(color = Colores.Separador)
-            Fila("Jornada", "Salida ${hora(r.salida)} · fin ${hora(r.finJornada)}") { editando = Campo.JORNADA }
+            Fila("Jornada", "Sales a las ${hora(r.salida)} y terminas a las ${hora(r.finJornada)}") { editando = Campo.JORNADA }
             HorizontalDivider(color = Colores.Separador)
             Fila("Colación", if (r.colacion == 0) "Sin colación" else "${r.colacion} min entre ${hora(r.colacionDesde)} y ${hora(r.colacionHasta)}") { editando = Campo.COLACION }
             HorizontalDivider(color = Colores.Separador)
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Trabajo los sábados", fontSize = 15.sp)
-                    Text("Cuentan como días hábiles del ciclo. Los feriados nunca cuentan.", color = Colores.Secundario, fontSize = 13.sp)
+                    Text("Si los activas, los sábados cuentan como días para cumplir el ciclo. Los feriados nunca cuentan.", color = Colores.Secundario, fontSize = 13.sp)
                 }
                 Switch(checked = r.sabados, onCheckedChange = { estado.guardarReglas(r.copy(sabados = it)) })
             }
@@ -79,7 +79,7 @@ private fun Fila(titulo: String, detalle: String, alTocar: () -> Unit) {
 private fun Dialogo(campo: Campo, r: Reglas, alGuardar: (Reglas) -> Unit, alCerrar: () -> Unit) {
     val (titulo, campos) = when (campo) {
         Campo.VISITA -> "Tiempo por visita" to listOf("Minutos" to "${r.minutosVisita}")
-        Campo.AVISO -> "Aviso de riesgo" to listOf("Días hábiles antes del cierre del ciclo" to "${r.diasAviso}")
+        Campo.AVISO -> "Aviso de clientes en riesgo" to listOf("Días hábiles antes del cierre del ciclo" to "${r.diasAviso}")
         Campo.JORNADA -> "Jornada" to listOf("Salida (08:30)" to hora(r.salida), "Fin de jornada (18:00)" to hora(r.finJornada))
         Campo.COLACION -> "Colación" to listOf("Minutos (0 = sin colación)" to "${r.colacion}", "Desde" to hora(r.colacionDesde), "Hasta" to hora(r.colacionHasta))
     }
@@ -90,7 +90,13 @@ private fun Dialogo(campo: Campo, r: Reglas, alGuardar: (Reglas) -> Unit, alCerr
         title = { AvisarFocoDeDialogo(); Text(titulo) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (campo == Campo.COLACION) Text("Visenda la ubica dentro de ese horario donde menos estorba, de preferencia mientras esperas que abra un cliente.", color = Colores.Secundario, fontSize = 13.sp)
+                val ayuda = when (campo) {
+                    Campo.VISITA -> "Lo que dura en promedio cada visita. Con esto Visenda calcula a cuántos clientes alcanzas a ver."
+                    Campo.AVISO -> "Un cliente queda \"en riesgo\" cuando le faltan visitas y quedan estos días hábiles o menos para que termine el ciclo. También cuando ya no le quedan suficientes días en que atiende."
+                    Campo.JORNADA -> "La ruta empieza a la hora de salida y la última visita termina antes del fin de jornada. Después de esa hora, Planificar arma el día siguiente."
+                    Campo.COLACION -> "Visenda la ubica dentro de ese horario donde menos estorba, de preferencia mientras esperas que abra un cliente."
+                }
+                Text(ayuda, color = Colores.Secundario, fontSize = 13.sp)
                 campos.forEachIndexed { i, (etiqueta, _) ->
                     OutlinedTextField(
                         textos[i].value, { textos[i].value = it }, label = { Text(etiqueta) }, singleLine = true,

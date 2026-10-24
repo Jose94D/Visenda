@@ -23,6 +23,7 @@ import cl.visenda.app.data.VisendaDatabase
 import cl.visenda.app.data.Visita
 import cl.visenda.app.dominio.Datos
 import cl.visenda.app.dominio.Estado
+import cl.visenda.app.dominio.FRECUENCIAS
 import cl.visenda.app.dominio.Motivo
 import cl.visenda.app.dominio.Opcion
 import cl.visenda.app.dominio.Paso
@@ -91,6 +92,8 @@ data class RutaDelDia(
     val colacion: Pair<Int, Int>? = null,
     /** Llegada de vuelta al punto de partida, si se pidió volver. */
     val vuelta: Int? = null,
+    /** Hora de salida para llegar a la primera visita justo cuando atiende. */
+    val sale: Int? = null,
 )
 
 /** Centro del mapa cuando no hay otro punto: Concepción. */
@@ -175,6 +178,17 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         reglas = r
         datos = datos.copy(reglas = r)
         ruta = null
+    }
+
+    private val prefsApp = context.getSharedPreferences("visenda", Context.MODE_PRIVATE)
+
+    /** La tarjeta de la guía de uso en Inicio desaparece al terminar la guía o al cerrarla con la X. */
+    var guiaVista by mutableStateOf(prefsApp.getBoolean("guiaVista", false))
+        private set
+
+    fun marcarGuiaVista() {
+        prefsApp.edit().putBoolean("guiaVista", true).apply()
+        guiaVista = true
     }
 
     /** Ajustes > Bloqueo con huella o PIN. */
@@ -367,6 +381,13 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
         ruta = null
     }
 
+    /** Visitas por ciclo propias del cliente en una empresa (RN-01: mandan sobre la categoría); null vuelve a la de su categoría. */
+    fun fijarVisitas(clienteId: Long, empresaId: Long, visitas: Int?) = scope.launch {
+        require(visitas == null || visitas in FRECUENCIAS)
+        withContext(Dispatchers.IO) { dao.fijarVisitas(clienteId, empresaId, visitas) }
+        recargar()
+    }
+
     suspend fun eliminarCliente(id: Long) {
         withContext(Dispatchers.IO) { dao.eliminarCliente(id) }
         seleccion = seleccion - id
@@ -475,7 +496,10 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
             plan.pasos.forEach { s -> if (tandas.lastOrNull()?.last()?.lugar == s.lugar && s.inicio == s.llegada) tandas.last() += s else tandas += mutableListOf(s) }
             val paradas = tandas.map { t ->
                 Parada(p.lugares[t[0].lugar - 1], t.map { s -> datos.clientes.first { it.id == s.clienteId } }, t[0].llegada, t[0].inicio, t.minOf { it.cierra })
-            }
+            }.toMutableList()
+            // Antes de la primera visita no se espera: se sale a tiempo para llegar cuando abre (así lo calcula el optimizador).
+            val sale = paradas[0].inicio - p.viaje[0][plan.pasos[0].lugar]
+            paradas[0] = paradas[0].copy(llegada = paradas[0].inicio)
             // Tras pasosAntes visitas: la colación va después de la parada donde se completan esas visitas.
             val colacion = plan.colacion?.let { c -> c.inicio to tandas.runningFold(0) { n, t -> n + t.size }.indexOfFirst { it >= c.pasosAntes } }
             val puntos = listOf(desde) + paradas.map { it.lugar.lat!! to it.lugar.lng!! } + listOfNotNull(desde.takeIf { plan.vuelta != null })
@@ -487,6 +511,7 @@ class AppEstado(private val context: Context, private val scope: CoroutineScope)
             ruta = RutaDelDia(
                 fecha = fecha,
                 paradas = paradas,
+                sale = sale,
                 km = trayecto.getJSONObject("summary").getDouble("length"),
                 termina = plan.termina,
                 trazado = (0 until tramos.length()).flatMap { decodificarPolilinea(tramos.getJSONObject(it).getString("shape")) },

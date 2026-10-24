@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -60,6 +61,17 @@ fun Inicio(estado: AppEstado, nav: Navegador, modifier: Modifier) {
             Column(Modifier.padding(bottom = 4.dp)) {
                 Text(hoy.format(DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", ES)).replaceFirstChar { it.uppercase() }, color = Colores.Secundario, fontSize = 13.sp)
                 Text(saludo, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        if (!estado.guiaVista) item {
+            Tarjeta(Modifier.clickable { nav.ir(Pantalla.Guia) }, relleno = 14.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("¿Primera vez en Visenda?", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text("Mira la guía de uso: cómo empezar, paso a paso y con imágenes.", color = Colores.Secundario, fontSize = 13.sp)
+                    }
+                    IconButton(onClick = { estado.marcarGuiaVista() }) { Icon(Iconos.Cerrar, "No mostrar más la guía en Inicio", tint = Colores.Secundario) }
+                }
             }
         }
         items(d.empresas.size) { i ->

@@ -68,7 +68,7 @@ fun Ruta(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    "${ruta.paradas.size} paradas · ${"%.1f".format(ruta.km)} km · termina ${hora(ruta.termina)}" +
+                    "${ruta.paradas.size} paradas · ${"%.1f".format(ruta.km)} km" + (ruta.sale?.let { " · sal a las ${hora(it)}" } ?: "") + " · termina ${hora(ruta.termina)}" +
                         (ruta.vuelta?.let { " · de vuelta ${hora(it)}" } ?: "") + " · " + ruta.origen,
                     color = Colores.Secundario, fontSize = 13.sp,
                 )

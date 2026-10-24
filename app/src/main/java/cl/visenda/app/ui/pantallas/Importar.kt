@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -130,6 +131,7 @@ fun Importar(estado: AppEstado, nav: Navegador, modifier: Modifier) {
                             }
                         }
                     }
+                    item { TextButton(onClick = { nav.ir(Pantalla.GuiaKardex) }) { Text("¿Cómo preparar el kardex?") } }
                     item { TituloSeccion("¿De qué empresa es?") }
                     item {
                         Tarjeta(relleno = 0.dp) {

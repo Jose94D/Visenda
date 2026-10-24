@@ -46,6 +46,8 @@ import cl.visenda.app.ui.pantallas.Ruta
 import cl.visenda.app.ui.pantallas.SinUbicar
 import cl.visenda.app.ui.pantallas.Ubicar
 import cl.visenda.app.ui.pantallas.ElegirPartida
+import cl.visenda.app.ui.pantallas.GuiaKardex
+import cl.visenda.app.ui.pantallas.Guia
 import cl.visenda.app.dominio.Estado
 
 sealed interface Pantalla {
@@ -59,6 +61,8 @@ sealed interface Pantalla {
     data object SinUbicar : Pantalla
     data object Regiones : Pantalla
     data object ElegirPartida : Pantalla
+    data object GuiaKardex : Pantalla
+    data object Guia : Pantalla
     data object Respaldo : Pantalla
     data class EditarEmpresa(val empresaId: Long) : Pantalla
     data class Ubicar(val lugarId: Long) : Pantalla
@@ -159,6 +163,8 @@ fun VisendaApp() {
                 Pantalla.SinUbicar -> SinUbicar(estado, nav, m)
                 Pantalla.Regiones -> Regiones(estado, nav, m)
                 Pantalla.ElegirPartida -> ElegirPartida(estado, nav, m)
+                Pantalla.GuiaKardex -> GuiaKardex(nav, m)
+                Pantalla.Guia -> Guia(estado, nav, m)
                 Pantalla.Respaldo -> Respaldo(estado, nav, m)
                 is Pantalla.EditarEmpresa -> EditarEmpresa(estado, nav, actual.empresaId, m)
                 is Pantalla.Ubicar -> Ubicar(estado, nav, actual.lugarId, m)

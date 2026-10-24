@@ -12,34 +12,34 @@ Funciona **100% dentro del teléfono**: sin servidor, sin cuentas y sin que los 
 
 ## Capturas
 
-Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
+Con los datos de ejemplo de la app (clientes ficticios).
 
 <!-- Sin tabla: en una tabla GitHub ajusta cada columna al texto y las imágenes quedan de distinto tamaño. -->
 <p align="center">
-  <img src="docs/capturas/inicio.png" width="240" alt="Inicio: avance del ciclo por empresa y clientes en riesgo">
-  <img src="docs/capturas/clientes.png" width="240" alt="Clientes agrupados por estado: en riesgo, pendientes y completos">
-  <img src="docs/capturas/perfil.png" width="240" alt="Perfil del cliente con avance por empresa, oficinas y horarios">
+  <img src="docs/capturas/inicio.png" width="240" alt="Inicio: acceso a la guía de uso, avance del ciclo por empresa y clientes en riesgo">
+  <img src="docs/capturas/clientes.png" width="240" alt="Clientes agrupados por estado y filtrables por empresa">
+  <img src="docs/capturas/perfil.png" width="240" alt="Perfil del cliente con avance y visitas por ciclo de cada empresa, y sus consultas">
 </p>
 <p align="center">
-  <img src="docs/capturas/planificar.png" width="240" alt="Planificar: clientes sugeridos según riesgo y horario">
-  <img src="docs/capturas/ruta.png" width="240" alt="Ruta del día sobre el mapa offline con horas de llegada">
-  <img src="docs/capturas/ajustes.png" width="240" alt="Ajustes: empresas, ciclos, mapas sin conexión y planificación">
+  <img src="docs/capturas/planificar.png" width="240" alt="Planificar: clientes sugeridos con el motivo de cada sugerencia">
+  <img src="docs/capturas/ruta.png" width="240" alt="Ruta del día sobre el mapa offline con hora de salida, llegadas y vuelta">
+  <img src="docs/capturas/ajustes.png" width="240" alt="Ajustes: primeros pasos, guía de uso y empresas">
 </p>
 
-- **Inicio:** avance del ciclo por empresa y alertas de riesgo.
-- **Clientes:** ordenados por estado.
-- **Perfil:** avance por empresa, oficinas con su horario y datos del kardex.
-- **Planificar:** sugerencias según riesgo y horario de atención.
-- **Ruta:** mapa offline, con llegada y espera en cada parada.
-- **Ajustes:** empresas, ciclos y mapas descargados.
+- **Inicio:** avance del ciclo por empresa, alertas de riesgo y la guía para quien empieza.
+- **Clientes:** ordenados por estado y filtrables por empresa.
+- **Perfil:** avance y visitas por ciclo de cada empresa, consultas con su horario y datos del kardex.
+- **Planificar:** sugerencias según urgencia, km y horario, con el motivo de cada una.
+- **Ruta:** mapa offline, con hora de salida, llegada a cada parada, colación y vuelta.
+- **Ajustes:** primeros pasos, guía de uso, empresas, kardex, mapas, planificación y seguridad.
 
 ## Funciones
 
 **Ya funcionan:**
 
-- **Importar el kardex** desde `.xlsx`: propone qué es cada columna, agrupa las filas de un mismo cliente con varias oficinas, entiende los horarios más comunes y deja "por revisar" los que no. Reimportar actualiza sin duplicar ni borrar visitas. Las direcciones se ubican solas con el geocodificador de Android.
+- **Importar el kardex** desde `.xlsx`: propone qué es cada columna, agrupa las filas de un mismo cliente con varias oficinas, entiende los horarios más comunes y deja "por revisar" los que no. Reimportar actualiza sin duplicar ni borrar visitas. Las direcciones se ubican solas con el geocodificador de Android. Incluye una guía para preparar la planilla, con ejemplos de cómo debe verse, y una plantilla `.xlsx` para descargar.
 
-- **Ciclos por empresa**, con frecuencias por categoría y aviso de clientes en riesgo antes del cierre del ciclo. Las empresas, sus ciclos y categorías se crean y editan en Ajustes; eliminar una empresa pide escribir su nombre.
+- **Ciclos por empresa**, con frecuencias por categoría y aviso de clientes en riesgo antes del cierre del ciclo. Un médico puede tener sus propias visitas por ciclo, que se cambian en su perfil y se conservan al reimportar. Las empresas, sus ciclos y categorías se crean y editan en Ajustes; eliminar una empresa pide escribir su nombre.
 - **Varias empresas a la vez**: una misma visita puede contar para más de una.
 - **Clientes con varias oficinas**, cada una con su horario, incluido el horario partido.
 - **Planificar el día**: sugiere a quién visitar sopesando la urgencia de cada cliente en su ciclo, los km, las esperas a que abran y los horarios, y explica cada sugerencia ("en riesgo", "de pasada", "desvío de 4 km"). Calcula el orden óptimo con la colación incluida y, si se pide, la vuelta al punto de partida, que puede ser la ubicación del teléfono o un punto elegido en el mapa (no se guarda). Si no caben todos, prioriza a los clientes en riesgo y explica por qué quedó fuera cada uno.
@@ -50,6 +50,7 @@ Prototipo del Hito 2 con datos de ejemplo (clientes ficticios).
 - **Mapas por región:** se descargan desde Ajustes las 16 regiones de Chile, con descarga que se reanuda, opción "Solo con Wi-Fi" y verificación de cada archivo.
 - **Ruta y mapa offline** con Valhalla y MapLibre; las rutas cruzan de una región descargada a otra. La ruta parte desde la ubicación del teléfono.
 - **Ubicar en el mapa** las direcciones que el geocodificador no encontró, o corregir una mal ubicada; la corrección no se pierde al reimportar.
+- **Guía de uso** para quien empieza: se ofrece en Inicio hasta verla o cerrarla, y queda siempre en Ajustes, junto con "Primeros pasos".
 - **Perfil del cliente** con oficinas, horarios, datos extra del kardex (cumpleaños, teléfono…) e historial de visitas.
 
 **Próximos hitos:**

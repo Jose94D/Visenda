@@ -87,14 +87,18 @@ fun EditarEmpresa(estado: AppEstado, nav: Navegador, empresaId: Long, modifier: 
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
+                Text("Una empresa es el laboratorio o compañía para la que visitas. Cada una tiene sus propios ciclos y metas de visitas.", color = Colores.Secundario, fontSize = 13.sp)
+            }
+            item {
                 Tarjeta {
-                    OutlinedTextField(nombre, { nombre = it }, label = { Text("Nombre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Fila("Visitas por ciclo a cada cliente", "Si no tiene categoría", frecuencia) { frecuencia = it }
+                    OutlinedTextField(nombre, { nombre = it }, label = { Text("Nombre de la empresa") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Fila("Visitas por ciclo (por defecto)", "Para clientes sin categoría ni un número propio en su perfil", frecuencia) { frecuencia = it }
                 }
             }
 
             item { TituloSeccion("Ciclos") }
-            if (ciclos.isEmpty()) item { Text("Sin ciclos, los clientes se muestran \"sin ciclo\" y no generan avisos.", color = Colores.Secundario, fontSize = 13.sp) }
+            item { Text("Un ciclo es el período en que debes cumplir tus visitas, normalmente un mes. Al empezar uno nuevo, el conteo parte de cero.", color = Colores.Secundario, fontSize = 13.sp) }
+            if (ciclos.isEmpty()) item { Text("Sin un ciclo vigente, Visenda no puede saber qué visitas te faltan ni avisarte de clientes en riesgo.", color = Colores.Naranja, fontSize = 13.sp) }
             itemsIndexed(ciclos) { i, c ->
                 Tarjeta(relleno = 12.dp) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -118,6 +122,13 @@ fun EditarEmpresa(estado: AppEstado, nav: Navegador, empresaId: Long, modifier: 
             }
 
             item { TituloSeccion("Categorías") }
+            item {
+                Text(
+                    "Las categorías agrupan a tus clientes según cuántas veces debes visitarlos en cada ciclo. Por ejemplo: A = 2 visitas, B = 1 visita. " +
+                        "Cada cliente toma su categoría de la columna \"Categoría\" del kardex.",
+                    color = Colores.Secundario, fontSize = 13.sp,
+                )
+            }
             if (categorias.isNotEmpty()) item {
                 Tarjeta(relleno = 0.dp) {
                     Column {
@@ -135,7 +146,13 @@ fun EditarEmpresa(estado: AppEstado, nav: Navegador, empresaId: Long, modifier: 
             item {
                 OutlinedButton(onClick = { categorias += Categoria(0, empresaId, "", frecuencia) }, shape = RoundedCornerShape(12.dp)) { Text("Agregar categoría") }
             }
-            item { Text("Visitas por ciclo de cada categoría. Si quitas una, sus clientes pasan a la frecuencia por defecto.", color = Colores.Secundario, fontSize = 13.sp) }
+            item {
+                Text(
+                    "Si a un médico le corresponde un número distinto, cámbialo en su perfil: eso manda sobre la categoría. " +
+                        "Si quitas una categoría, sus clientes pasan a las visitas por defecto.",
+                    color = Colores.Secundario, fontSize = 13.sp,
+                )
+            }
 
             if (original != null) item {
                 OutlinedButton(onClick = { eliminar = true }, shape = RoundedCornerShape(12.dp), modifier = Modifier.padding(top = 12.dp)) {
@@ -200,7 +217,7 @@ private fun Fila(titulo: String, detalle: String, valor: Int, alCambiar: (Int) -
 }
 
 @Composable
-private fun Contador(valor: Int, modifier: Modifier, alCambiar: (Int) -> Unit) {
+fun Contador(valor: Int, modifier: Modifier, alCambiar: (Int) -> Unit) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
         TextButton(onClick = { alCambiar(valor - 1) }, enabled = valor > FRECUENCIAS.first, modifier = Modifier.size(48.dp).semantics { contentDescription = "Una visita menos" }) { Text("−", fontSize = 20.sp) }
         Text("$valor", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.width(28.dp))

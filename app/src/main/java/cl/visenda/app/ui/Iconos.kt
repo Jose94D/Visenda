@@ -40,5 +40,6 @@ object Iconos {
     val Navegar = icono("M3 11 21 3l-8 18-2-8z")
     val Flecha = icono("M5 12h14M13 6l6 6-6 6")
     val Importar = icono("M12 3v12M7 10l5 5 5-5M5 21h14")
+    val Cerrar = icono("M6 6l12 12M18 6 6 18")
     val Candado = icono("M6 11h12v10H6z", "M8 11V7a4 4 0 0 1 8 0v4")
 }

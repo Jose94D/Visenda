@@ -146,7 +146,8 @@ fun Perfil(estado: AppEstado, nav: Navegador, clienteId: Long, modifier: Modifie
         if (estados.isNotEmpty()) item {
             Tarjeta {
                 TituloSeccion("Este ciclo")
-                estados.forEach { e ->
+                estados.forEachIndexed { i, e ->
+                    if (i > 0) HorizontalDivider(color = Colores.Separador)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(e.empresa.nombre, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -155,6 +156,26 @@ fun Perfil(estado: AppEstado, nav: Navegador, clienteId: Long, modifier: Modifie
                         }
                     }
                     BarraProgreso(if (e.requeridas == 0) 1f else e.hechas.toFloat() / e.requeridas, "${e.hechas} de ${e.requeridas} visitas")
+                    // RN-01: visitas propias > categoría > defecto de la empresa. Se cambian aquí y se conservan al reimportar.
+                    val c = d.cartera.first { it.clienteId == clienteId && it.empresaId == e.empresa.id }
+                    val categoria = d.categorias.firstOrNull { it.id == c.categoriaId }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Visitas por ciclo", fontSize = 14.sp)
+                            Text(
+                                when {
+                                    c.frecuenciaManual != null -> "Propias de este médico"
+                                    categoria != null -> "De su categoría ${categoria.nombre}"
+                                    else -> "Por defecto de la empresa"
+                                },
+                                color = Colores.Secundario, fontSize = 13.sp,
+                            )
+                        }
+                        Contador(e.requeridas, Modifier) { estado.fijarVisitas(clienteId, e.empresa.id, it) }
+                    }
+                    if (c.frecuenciaManual != null) TextButton(onClick = { estado.fijarVisitas(clienteId, e.empresa.id, null) }) {
+                        Text(if (categoria != null) "Volver a la de su categoría (${categoria.frecuencia})" else "Volver a la de la empresa (${e.empresa.frecuenciaDefecto})")
+                    }
                 }
             }
         }
