@@ -6,7 +6,7 @@ App Android para visitadores en terreno (visitadores médicos y oficios similare
 
 Funciona **100% dentro del teléfono**: sin servidor, sin cuentas y sin que los datos salgan del dispositivo. Rutas y mapas también son offline.
 
-> **Estado:** Hito 2 terminado. El prototipo es navegable con datos de ejemplo y calcula rutas reales sin internet; está en validación con visitadores. Hito 3 terminado (falta la validación con visitadores): optimizador de ruta, importador del kardex, corrección de ubicaciones en el mapa, descarga de mapas por región y respaldo cifrado.
+> **Estado:** Hitos 1 a 3 terminados. Hito 4 (refinamiento para usuarios reales) en curso: ya están la gestión de empresas, la base cifrada con bloqueo por huella, los derechos de datos y la planificación por urgencia. Sigue la beta cerrada con visitadores (Hito 5).
 >
 > Avance del proyecto: [tablero en Trello](https://trello.com/b/AAhJ7hXT/visenda).
 
@@ -55,6 +55,8 @@ Con los datos de ejemplo de la app (clientes ficticios).
 
 **Próximos hitos:**
 
+- **Beta cerrada (Hito 5):** visitadores usándola a diario con sus kardex reales durante al menos un ciclo, y la prueba de 14 días que exige Google Play.
+- **Lanzamiento (Hito 6):** publicación en Google Play y actualización mensual automática de los mapas.
 
 ## Privacidad
 
@@ -97,6 +99,16 @@ erDiagram
 - Un cliente puede estar en la cartera de **varias empresas** y atender en **varios lugares**, cada uno con su horario.
 - Una visita puede **contar para varias empresas** a la vez.
 
+## Instalar
+
+Requiere Android 8.0 o superior.
+
+1. Desde el teléfono, entra a [la última versión](https://github.com/Jose94D/Visenda/releases/latest) y descarga el archivo `.apk`.
+2. Ábrelo. La primera vez Android pide permitir "instalar apps desconocidas" para el navegador o la app de archivos: acéptalo y vuelve atrás.
+3. Presiona **Instalar**. Al abrir Visenda, la guía de uso explica cómo importar el kardex, y los mapas de tu región se descargan desde **Ajustes**.
+
+Para actualizar, instala el `.apk` nuevo encima del anterior: los datos se conservan. Si Android no deja instalarlo encima, haz un respaldo desde **Ajustes** antes de desinstalar, porque desinstalar borra todos los datos.
+
 ## Compilar
 
 Requisitos: Android Studio reciente (incluye el JDK y el SDK de Android con la API 37).
@@ -120,11 +132,13 @@ Cada push compila el APK automáticamente en GitHub Actions; se descarga desde l
 ```
 app/src/main/java/cl/visenda/app/
 ├── MainActivity.kt          Punto de entrada
-├── data/                    Modelo de datos (12 tablas), Room y datos de ejemplo
-├── dominio/                 Reglas de negocio: ciclos, estados y optimizador de ruta
-├── importar/                Lector de Excel (.xlsx)
-└── ui/                      Navegación, tema, mapa offline y estado de la app
-    └── pantallas/           Inicio, Clientes, Perfil, Planificar, Ruta, Ajustes
+├── data/                    Modelo de datos (12 tablas), Room, base cifrada y datos de ejemplo
+├── dominio/                 Reglas de negocio: ciclos, urgencia, optimizador de ruta y exportar datos
+├── importar/                Lector de Excel (.xlsx), intérprete de horarios, plantilla y geocodificación
+├── mapas/                   Descarga de mapas y rutas por región
+├── respaldo/                Respaldo cifrado (.visenda)
+└── ui/                      Navegación, tema, bloqueo con huella, mapa offline y estado de la app
+    └── pantallas/           Inicio, Clientes, Perfil, Planificar, Ruta, Ajustes, Importar, Guía…
 app/schemas/                 Esquemas de Room versionados (para migraciones)
 docs/
 ├── ESPECIFICACION.md        Pantallas, reglas de negocio y criterios de aceptación
